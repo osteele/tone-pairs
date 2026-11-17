@@ -25,7 +25,9 @@ export interface Playback {
 
 type Listener = (state: Playback) => void;
 
-const GAP_MS = 350;
+// Between the clips of a sequence, short so the two words are heard as a pair; between
+// repeats of a loop, longer, so each repeat starts as a new pair.
+const GAP_MS = 175;
 const LOOP_GAP_MS = 900;
 
 const player = new Audio();

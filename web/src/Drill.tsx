@@ -5,11 +5,12 @@ import {
   FaFlag,
   FaPlay,
   FaRepeat,
+  FaStop,
   FaVolumeHigh,
   FaXmark,
 } from "react-icons/fa6";
 import { play, playSequence, stop } from "./audio";
-import type { Deck, Pattern, Tone, Word } from "./deck";
+import type { Deck, Tone, Word } from "./deck";
 import { recorded, siblings } from "./deck";
 import { isCorrect, wordForAnswer } from "./grading";
 import { markSyllable, samePattern } from "./pinyin";
@@ -52,7 +53,9 @@ export function Drill({
   onExtra,
 }: Props) {
   const [prompt, setPrompt] = useState<Prompt | null>(first);
-  const [choice, setChoice] = useState<Tone | null>(null);
+  // The tones picked so far for each syllable, in either order; the answer is submitted
+  // once both are picked.
+  const [choices, setChoices] = useState<(Tone | null)[]>([null, null]);
   const [result, setResult] = useState<Result | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [tally, setTally] = useState({ answered: 0, right: 0 });
@@ -75,18 +78,20 @@ export function Drill({
     cancelAdvance();
     const next = nextPrompt(deck, latest.current, mode, prompt?.word.id, new Date());
     setPrompt(next);
-    setChoice(null);
+    setChoices([null, null]);
     setResult(null);
     if (next) void say(next.word, next.voice);
   }, [deck, mode, prompt, say, cancelAdvance]);
 
-  const answer = (tone: Tone) => {
+  const pick = (syllable: number, tone: Tone) => {
     if (!prompt || result) return;
-    if (choice === null) {
-      setChoice(tone);
-      return;
-    }
-    const pattern: Tone[] = [choice, tone];
+    const next = choices.map((c, i) => (i === syllable ? tone : c));
+    setChoices(next);
+    if (next.every((c) => c !== null)) submit(next as Tone[]);
+  };
+
+  const submit = (pattern: Tone[]) => {
+    if (!prompt) return;
     const family = siblings(deck, prompt.word);
     const correct = isCorrect(pattern, prompt.word, family);
     setResult({ answer: pattern, correct });
@@ -142,10 +147,12 @@ export function Drill({
       } else if (e.key === "Enter" && result) {
         advance();
       } else if (/^[1-5]$/.test(e.key) && !result) {
+        // Fills the first syllable, then the second; a neutral tone only fits the second.
         const tone = Number(e.key) as Tone;
-        if (choice !== null || tone !== 5) answer(tone);
+        if (choices[0] === null && tone !== 5) pick(0, tone);
+        else if (choices[1] === null) pick(1, tone);
       } else if (e.key === "Backspace" && !result) {
-        setChoice(null);
+        setChoices([null, null]);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -167,14 +174,18 @@ export function Drill({
         <FaXmark size={22} />
       </button>
       <span className="text-sm text-stone-500">
-        {mode === "extra" && "Extra practice · "}
-        {tally.answered > 0 ? `${tally.right}/${tally.answered} right` : ""}
+        {[
+          mode === "extra" ? "Extra practice" : "",
+          tally.answered > 0 ? `${tally.right}/${tally.answered} right` : "",
+        ]
+          .filter(Boolean)
+          .join(" · ")}
       </span>
     </header>
   );
 
   const shell = (body: React.ReactNode) => (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-5 pt-[max(env(safe-area-inset-top),1rem)] pb-[max(env(safe-area-inset-bottom),1.5rem)]">
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-5 pt-[max(env(safe-area-inset-top),1rem)] pb-[max(env(safe-area-inset-bottom),1.5rem)]">
       {header}
       {body}
     </main>
@@ -210,27 +221,31 @@ export function Drill({
 
   return shell(
     <>
-      <section className="flex flex-col items-center gap-4 pt-4">
-        <p className="text-4xl font-medium tracking-wide">
-          {result
-            ? word.syllables.map((s, i) => markSyllable(s, word.spoken[i]!)).join(" ")
-            : word.syllables
-                .map((s, i) => (i === 0 && choice !== null ? markSyllable(s, choice) : s))
-                .join(" ")
-                .replaceAll("u:", "ü")}
-        </p>
-        <button
-          type="button"
-          aria-label="Play again"
-          onClick={() => hear(word)}
-          className={`flex size-20 items-center justify-center rounded-full text-white active:scale-95 ${
-            blocked ? "animate-pulse bg-amber-500" : "bg-teal-600"
-          }`}
-        >
-          <FaVolumeHigh size={32} />
-        </button>
-        {blocked && <p className="text-sm text-amber-700">Tap to play</p>}
-      </section>
+      {/* After an answer the feedback names the word and has its own play button. */}
+      {!result && (
+        <section className="flex flex-col items-center gap-3">
+          <p className="text-4xl font-medium tracking-wide">
+            {word.syllables
+              .map((s, i) => {
+                const tone = choices[i];
+                return tone == null ? s : markSyllable(s, tone);
+              })
+              .join(" ")
+              .replaceAll("u:", "ü")}
+          </p>
+          <button
+            type="button"
+            aria-label="Play again"
+            onClick={() => hear(word)}
+            className={`flex size-16 items-center justify-center rounded-full text-white active:scale-95 ${
+              blocked ? "animate-pulse bg-amber-500" : "bg-teal-600"
+            }`}
+          >
+            <FaVolumeHigh size={28} />
+          </button>
+          {blocked && <p className="text-sm text-amber-700">Tap to play</p>}
+        </section>
+      )}
 
       {result ? (
         <Feedback
@@ -247,15 +262,14 @@ export function Drill({
           <ToneRow
             syllable={word.syllables[0]!}
             tones={FIRST_TONES}
-            selected={choice}
-            onPick={(tone) => setChoice(tone)}
+            selected={choices[0] ?? null}
+            onPick={(tone) => pick(0, tone)}
           />
           <ToneRow
             syllable={word.syllables[1]!}
             tones={SECOND_TONES}
-            selected={null}
-            disabled={choice === null}
-            onPick={answer}
+            selected={choices[1] ?? null}
+            onPick={(tone) => pick(1, tone)}
           />
         </section>
       )}
@@ -267,13 +281,11 @@ function ToneRow({
   syllable,
   tones,
   selected,
-  disabled = false,
   onPick,
 }: {
   syllable: string;
   tones: Tone[];
   selected: Tone | null;
-  disabled?: boolean;
   onPick: (tone: Tone) => void;
 }) {
   return (
@@ -282,9 +294,8 @@ function ToneRow({
         <button
           key={tone}
           type="button"
-          disabled={disabled}
           onClick={() => onPick(tone)}
-          className={`flex flex-col items-center rounded-xl border py-3 text-xl active:scale-95 disabled:opacity-40 ${
+          className={`flex flex-col items-center rounded-xl border py-3 text-xl active:scale-95 ${
             selected === tone
               ? "border-teal-600 bg-teal-600 text-white"
               : "border-stone-300 bg-white"
@@ -298,17 +309,11 @@ function ToneRow({
   );
 }
 
-const HEARD = "#0d9488";
-const ANSWERED = "#e11d48";
+const PLAYED = "#0d9488";
+const ANSWERED = "#dc2626";
 const OTHER = "#6366f1";
-
-/** The pattern drawn beside the heard word, and its recording if there is one. */
-interface Comparison {
-  pattern: Pattern;
-  word: Word | undefined;
-  label: string;
-  color: string;
-}
+// A word that has no line on the graph at the moment.
+const UNDRAWN = "#a8a29e";
 
 function Feedback({
   deck,
@@ -329,44 +334,53 @@ function Feedback({
   onNext: () => void;
 }) {
   const { word, voice } = prompt;
-  const all = recorded(deck, word);
-  const answered = result.correct ? undefined : wordForAnswer(result.answer, all);
-  const answeredText = word.syllables.map((s, i) => markSyllable(s, result.answer[i]!)).join("");
-  const [comparison, setComparison] = useState<Comparison | null>(
-    result.correct
-      ? null
-      : {
-          pattern: result.answer,
-          word: answered,
-          label: `${answeredText} (your answer)`,
-          color: ANSWERED,
-        },
+  // The word whose tones the listener named, if one was recorded.
+  const answered = result.correct ? undefined : wordForAnswer(result.answer, recorded(deck, word));
+  const answeredPinyin = word.syllables.map((s, i) => markSyllable(s, result.answer[i]!)).join("");
+  // Real drill words of the family besides the two above, to compare against the word played.
+  const others = siblings(deck, word).filter(
+    (w) => w.real && w.id !== word.id && w.id !== answered?.id,
   );
+  // The word drawn and played against the word played: the answer, until another is picked.
+  const [picked, setPicked] = useState<Word | null>(null);
+  const comparison = picked ?? answered;
   const playback = usePlayback();
-  const looping = playback?.looping === true && playback.clip !== null;
+  // True through the gaps between clips, while no clip is playing, until the loop is stopped.
+  const looping = playback?.looping === true;
 
-  const heardClip = clipFor(deck, word, voice);
-  const otherClip = comparison?.word ? clipFor(deck, comparison.word, voice) : undefined;
+  const playedClip = clipFor(deck, word, voice);
+  const answeredClip = answered ? clipFor(deck, answered, voice) : undefined;
+  const comparisonClip = comparison ? clipFor(deck, comparison, voice) : undefined;
 
-  const lines: GraphLine[] = [
-    {
-      key: "heard",
-      pattern: word.spoken,
-      label: `${word.pinyin} (heard)`,
-      color: HEARD,
-      path: heardClip.path,
-      timing: deck.timing[heardClip.path],
-    },
-  ];
-  if (comparison) {
-    lines.push({
-      key: "comparison",
-      pattern: comparison.pattern,
-      label: comparison.label,
-      color: comparison.color,
-      path: otherClip?.path,
-      timing: otherClip ? deck.timing[otherClip.path] : undefined,
-    });
+  const played: GraphLine = {
+    key: "played",
+    pattern: word.spoken,
+    label: `played ${word.pinyin}`,
+    color: PLAYED,
+    path: playedClip.path,
+    timing: deck.timing[playedClip.path],
+  };
+  // Drawn on a second staff, beneath the word played.
+  let compared: GraphLine | undefined;
+  if (picked) {
+    const clip = clipFor(deck, picked, voice);
+    compared = {
+      key: "other",
+      pattern: picked.spoken,
+      label: picked.pinyin,
+      color: OTHER,
+      path: clip.path,
+      timing: deck.timing[clip.path],
+    };
+  } else if (!result.correct) {
+    compared = {
+      key: "answered",
+      pattern: result.answer,
+      label: `your answer ${answeredPinyin}`,
+      color: ANSWERED,
+      path: answeredClip?.path,
+      timing: answeredClip ? deck.timing[answeredClip.path] : undefined,
+    };
   }
 
   const tapped = (fn: () => void) => () => {
@@ -374,120 +388,123 @@ function Feedback({
     fn();
   };
 
-  const select = (member: Word) => {
-    if (member.id === word.id) {
-      void play(heardClip);
-      return;
-    }
-    const isAnswer = member.id === answered?.id;
-    setComparison({
-      pattern: member.spoken,
-      word: member,
-      label: isAnswer ? `${member.pinyin} (your answer)` : member.pinyin,
-      color: isAnswer ? ANSWERED : OTHER,
-    });
-    void play(clipFor(deck, member, voice));
-  };
-
-  // Real drill words, plus the heard word and the answered word even when they are not words.
-  const drill = siblings(deck, word);
-  const shown = drill.filter((m) => m.real || m.id === word.id || m.id === answered?.id);
-  if (answered && !drill.includes(answered)) shown.push(answered);
-
   return (
-    <section className="mt-auto flex flex-col gap-3">
+    <section className="flex flex-1 flex-col gap-3">
       <div
-        className={`flex items-center gap-3 rounded-xl px-4 py-3 ${
-          result.correct ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"
+        className={`flex flex-col gap-2 rounded-xl px-4 py-3 ${
+          result.correct ? "bg-emerald-50" : "bg-rose-50"
         }`}
       >
-        {result.correct ? <FaCheck size={22} /> : <FaXmark size={22} />}
-        <div>
-          <p className="font-semibold">
-            {word.real ? word.hanzi : `${word.hanzi} (not a word)`} · {word.pinyin}
-          </p>
-          <p className="text-sm">{word.gloss}</p>
-          {!samePattern(word.tones, word.spoken) && (
-            <p className="text-sm">
-              Written {word.tones.join("-")}, said {word.spoken.join("-")}.
-            </p>
-          )}
-          {!result.correct && (
-            <p className="text-sm">
-              You answered {answeredText}
-              {answered?.real ? ` (${answered.hanzi})` : ""}.
-            </p>
-          )}
-        </div>
+        <p
+          className={`flex items-center gap-2 font-semibold ${
+            result.correct ? "text-emerald-800" : "text-rose-800"
+          }`}
+        >
+          {result.correct ? <FaCheck /> : <FaXmark />}
+          {result.correct ? "Right" : "Not quite"}
+        </p>
+        <WordRow
+          label="Played"
+          color={PLAYED}
+          pinyin={word.pinyin}
+          word={word}
+          note={
+            samePattern(word.tones, word.spoken)
+              ? undefined
+              : `written ${word.tones.join("-")}, said ${word.spoken.join("-")}`
+          }
+          onPlay={tapped(() => void play(playedClip))}
+        />
+        {!result.correct && (
+          <WordRow
+            label="Your answer"
+            color={picked ? UNDRAWN : ANSWERED}
+            pinyin={answeredPinyin}
+            word={answered}
+            onPlay={
+              answeredClip
+                ? tapped(() => {
+                    setPicked(null);
+                    void play(answeredClip);
+                  })
+                : undefined
+            }
+          />
+        )}
       </div>
 
-      <ToneGraph lines={lines} />
+      <div className="flex flex-col gap-6">
+        <Staff caption={`Played · ${word.pinyin}`} line={played} />
+        {compared && (
+          <Staff
+            caption={
+              picked
+                ? `Compared · ${picked.pinyin} ${picked.hanzi}`
+                : `Your answer · ${answeredPinyin}${answeredClip ? "" : " (no recording)"}`
+            }
+            line={compared}
+          />
+        )}
+      </div>
 
-      {comparison && (
-        <div className="grid grid-cols-4 gap-2 text-sm">
-          <ControlButton
-            label={word.pinyin}
-            color={HEARD}
-            onClick={tapped(() => void play(heardClip))}
+      {(!result.correct || picked) && (
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <button
+            type="button"
+            disabled={!comparisonClip}
+            onClick={tapped(
+              () => comparisonClip && void playSequence([playedClip, comparisonClip]),
+            )}
+            className="flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white py-2.5 disabled:opacity-40"
           >
-            <FaPlay />
-          </ControlButton>
-          <ControlButton
-            label={comparison.word ? comparison.word.pinyin : "no recording"}
-            color={comparison.color}
-            disabled={!otherClip}
-            onClick={tapped(() => otherClip && void play(otherClip))}
-          >
-            <FaPlay />
-          </ControlButton>
-          <ControlButton
-            label="both"
-            disabled={!otherClip}
-            onClick={tapped(() => otherClip && void playSequence([heardClip, otherClip]))}
-          >
-            <FaPlay />
-            <FaPlay />
-          </ControlButton>
-          <ControlButton
-            label={looping ? "stop" : "loop"}
-            active={looping}
-            disabled={!otherClip}
+            <FaPlay /> Play both
+          </button>
+          <button
+            type="button"
+            disabled={!comparisonClip}
             onClick={tapped(() => {
               if (looping) stop();
-              else if (otherClip) void playSequence([heardClip, otherClip], { loop: true });
+              else if (comparisonClip)
+                void playSequence([playedClip, comparisonClip], { loop: true });
             })}
+            className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 disabled:opacity-40 ${
+              looping ? "border-stone-800 bg-stone-800 text-white" : "border-stone-300 bg-white"
+            }`}
           >
-            <FaRepeat />
-          </ControlButton>
+            {looping ? <FaStop /> : <FaRepeat />} {looping ? "Stop" : "Loop both"}
+          </button>
         </div>
       )}
 
-      <ul className="flex flex-col">
-        {shown.map((member) => (
-          <li key={member.id}>
+      {others.length > 0 && (
+        <div className="flex flex-col">
+          <p className="text-xs text-stone-500">Other words with these syllables</p>
+          {others.map((other) => (
             <button
+              key={other.id}
               type="button"
-              onClick={tapped(() => select(member))}
-              className={`flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left active:bg-stone-200 ${
-                member.id === word.id
-                  ? "bg-teal-50"
-                  : member.id === comparison?.word?.id
-                    ? "bg-stone-100"
-                    : ""
+              onClick={tapped(() => {
+                setPicked(other);
+                void play(clipFor(deck, other, voice));
+              })}
+              className={`flex items-center gap-3 rounded-lg py-1 text-left active:bg-stone-200 ${
+                picked?.id === other.id ? "bg-stone-100" : ""
               }`}
             >
-              <FaVolumeHigh className="shrink-0 text-stone-400" />
-              <span className="w-24 font-medium">{member.pinyin}</span>
-              <span className="w-14 shrink-0 whitespace-nowrap">{member.hanzi}</span>
-              <span className="truncate text-sm text-stone-500">
-                {member.real ? member.gloss : "not a word"}
-              </span>
+              <span
+                className="h-5 w-1.5 shrink-0 rounded"
+                style={{ background: picked?.id === other.id ? OTHER : UNDRAWN }}
+              />
+              <span className="font-medium">{other.pinyin}</span>
+              <span>{other.hanzi}</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-stone-500">{other.gloss}</span>
+              <FaPlay className="mr-3 shrink-0 text-stone-400" />
             </button>
-          </li>
-        ))}
-      </ul>
+          ))}
+        </div>
+      )}
 
-      <div className="flex gap-3">
+      <div className="mt-auto flex gap-3">
         <button
           type="button"
           onClick={tapped(onFlag)}
@@ -503,7 +520,7 @@ function Feedback({
             stop();
             onNext();
           }}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-teal-600 py-4 text-lg font-semibold text-white active:bg-teal-700"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-teal-600 py-3.5 text-lg font-semibold text-white active:bg-teal-700"
         >
           Next <FaArrowRight />
         </button>
@@ -512,34 +529,58 @@ function Feedback({
   );
 }
 
-function ControlButton({
+/** A tone graph with a caption in its line's color, naming the word drawn. */
+function Staff({ caption, line }: { caption: string; line: GraphLine }) {
+  return (
+    <figure className="flex flex-col gap-1">
+      <figcaption className="text-xs font-medium" style={{ color: line.color }}>
+        {caption}
+      </figcaption>
+      <ToneGraph line={line} />
+    </figure>
+  );
+}
+
+/** One labelled word in the feedback, in its graph color, with a button to hear it. */
+function WordRow({
   label,
   color,
-  active = false,
-  disabled = false,
-  onClick,
-  children,
+  pinyin,
+  word,
+  note,
+  onPlay,
 }: {
   label: string;
-  color?: string;
-  active?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+  color: string;
+  pinyin: string;
+  /** Absent when no recording has these tones. */
+  word: Word | undefined;
+  note?: string;
+  onPlay: (() => void) | undefined;
 }) {
+  const meaning = word === undefined ? "no recording" : word.real ? word.gloss : "not a word";
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={`flex flex-col items-center gap-1 rounded-xl border py-2 disabled:opacity-40 ${
-        active ? "border-stone-800 bg-stone-800 text-white" : "border-stone-300 bg-white"
-      }`}
-    >
-      <span className="flex gap-0.5" style={color && !active ? { color } : undefined}>
-        {children}
-      </span>
-      <span className="max-w-full truncate px-1 text-xs">{label}</span>
-    </button>
+    <div className="flex items-center gap-3">
+      <span className="h-8 w-1.5 shrink-0 rounded" style={{ background: color }} />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-stone-500">{label}</p>
+        <p className="truncate">
+          <span className="font-medium">{pinyin}</span>
+          {word && <span className="ml-2">{word.hanzi}</span>}
+          <span className="ml-2 text-sm text-stone-500">{meaning}</span>
+        </p>
+        {note && <p className="text-xs text-stone-500">{note}</p>}
+      </div>
+      <button
+        type="button"
+        aria-label={`Play ${pinyin}`}
+        disabled={!onPlay}
+        onClick={onPlay}
+        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white disabled:opacity-30"
+        style={{ color }}
+      >
+        <FaPlay />
+      </button>
+    </div>
   );
 }

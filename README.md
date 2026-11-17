@@ -8,8 +8,8 @@ Live at <https://tone-pairs.pages.dev>.
 
 ## How the drill works
 
-You hear a word and see its pinyin without tone marks. Tap the first syllable's
-tone, then the second's. Each word is spoken by one of four synthesized voices
+You hear a word and see its pinyin without tone marks. Tap a tone for each
+syllable, in either order; the answer counts once both are chosen. Each word is spoken by one of four synthesized voices
 (two women, two men), chosen at random each time.
 
 Every toneless pinyin in the workbook (`shi jian`, `pi jiu`, …) becomes a
@@ -20,14 +20,16 @@ families are filled to four tone patterns with pseudo-words: two common
 characters, each with a single dictionary reading, labelled "not a word" in
 the feedback. The added patterns change one syllable's tone at a time.
 
-After you answer, a graph shows the idealized contour of the word you heard on
+After you answer, a staff shows the idealized contour of the word played on
 the five-level pitch scale (55, 35, 214, 51; a non-final third tone as 21; a
 neutral tone as a short pitch set by the tone before it). A dot follows the
-contour as the recording plays. When the answer is wrong, the graph adds the
-contour of the answer, and the word you heard and the word you named play one
-after the other in the same voice. Buttons replay either one, play both again,
-or loop the pair until stopped. Tapping another word in the family makes it
-the comparison.
+contour as the recording plays. When the answer is wrong, the feedback names
+the word played and the word your answer describes, each in its color with
+its own play button, and draws your answer's contour on a second staff below.
+The two play one after the other in the same voice, and can be played again or
+looped until stopped. Below them, the family's other real words are listed;
+tapping one plays it and puts it on the second staff, after a right answer
+too.
 
 The tones you name usually belong to no word in the drill set, so each family
 also has a recording of every other tone pattern, used only for comparisons:
