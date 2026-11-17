@@ -220,7 +220,8 @@ def choose(
     chosen: list[Word] = []
 
     if printed.tones is not None:
-        matches = [w for w in everything if w.tones == printed.tones]
+        # Textbooks print 一 and 不 with the tone they are said with (一起 yìqǐ).
+        matches = [w for w in everything if printed.tones in (w.tones, w.spoken)]
         if matches:
             chosen.append(matches[0])
         else:
@@ -238,8 +239,25 @@ def choose(
     return chosen, warnings
 
 
-def fill(family: Family, chars: Mapping[tuple[str, int], Character]) -> None:
-    """Add pseudo-words until the family has FAMILY_SIZE spoken patterns."""
+def fill(
+    family: Family,
+    chars: Mapping[tuple[str, int], Character],
+    rare: Mapping[tuple[str, int], Character] | None = None,
+) -> None:
+    """Add pseudo-words until the family has FAMILY_SIZE spoken patterns.
+
+    A family left with a single pattern can be answered from memory, so it is filled again
+    from ``rare``, characters less common than ``chars``. For *hen hao*, 好 has two readings and
+    no common character reads hén, so its pseudo-words use 痕 hén.
+    """
+    _fill_from(family, chars)
+    if rare is not None and len(family.patterns) < 2:
+        _fill_from(family, rare)
+    if len(family.patterns) < 2:
+        family.warnings.append(f"{family.key}: fewer than two tone patterns")
+
+
+def _fill_from(family: Family, chars: Mapping[tuple[str, int], Character]) -> None:
     for anchor in [w for w in family.words if w.real]:
         for pattern in neighbors(anchor.spoken):
             if len(family.words) >= FAMILY_SIZE:
@@ -249,8 +267,6 @@ def fill(family: Family, chars: Mapping[tuple[str, int], Character]) -> None:
             word = pseudo_word(family.syllables, pattern, chars)
             if word is not None and word.spoken not in family.patterns:
                 family.words.append(word)
-    if len(family.patterns) < 2:
-        family.warnings.append(f"{family.key}: fewer than two tone patterns")
 
 
 def add_contrasts(
@@ -289,7 +305,7 @@ def build_families(
             family.exercises.append(exercise)
         family.warnings.extend(warnings)
     for family in families.values():
-        fill(family, chars)
+        fill(family, chars, contrast_chars)
         pool = [*extras.get(family.key, []), *by_key.get(family.key, [])]
         add_contrasts(family, pool, contrast_chars)
     return list(families.values())

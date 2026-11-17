@@ -107,6 +107,15 @@ def test_choose_puts_printed_tones_first_and_keeps_patterns_distinct():
     assert warnings == []
 
 
+def test_choose_matches_tones_printed_as_spoken():
+    # The textbook prints 一起 (yī qǐ) as said: yìqǐ.
+    yiqi = Word("一起", ("yi", "qi"), (1, 3), spoken_tones("一起", (1, 3)), "together", 5.7)
+    yiqi2 = Word("仪器", ("yi", "qi"), (2, 4), (2, 4), "instrument", 4.4)
+    chosen, warnings = choose(parse_printed("yìqǐ", VALID | {"qi"}), [yiqi2, yiqi], [])
+    assert chosen[0] is yiqi
+    assert warnings == []
+
+
 def test_fill_adds_pseudo_words_for_missing_patterns():
     family = Family(syllables=("shi", "jian"), words=[_word("时间", (2, 1))])
     chars = {
@@ -121,6 +130,22 @@ def test_fill_adds_pseudo_words_for_missing_patterns():
     assert set(patterns[1:]) <= {(3, 1), (2, 2), (1, 1)}
     assert len(set(w.spoken for w in family.words)) == len(family.words)
     assert all(not w.real for w in family.words[1:])
+
+
+def test_fill_falls_back_to_rare_characters_only_for_a_single_pattern_family():
+    rare = {("shi", 3): Character("豕", "swine", 2.6), ("jian", 1): Character("湔", "wash", 2.6)}
+    lonely = Family(syllables=("shi", "jian"), words=[_word("时间", (2, 1))])
+    fill(lonely, {}, rare)
+    assert [(w.hanzi, w.tones) for w in lonely.words[1:]] == [("豕湔", (3, 1))]
+    assert lonely.warnings == []
+
+    common = {
+        ("shi", 4): Character("事", "matter", 5.0),
+        ("jian", 1): Character("间", "between", 5.0),
+    }
+    paired = Family(syllables=("shi", "jian"), words=[_word("时间", (2, 1))])
+    fill(paired, common, rare)
+    assert all("豕" not in w.hanzi and "湔" not in w.hanzi for w in paired.words)
 
 
 def test_contrasts_cover_other_patterns_preferring_real_words():

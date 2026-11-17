@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 
+import aiohttp
 import edge_tts
 
 from .families import Word
@@ -28,6 +29,8 @@ VOICES = (
 )
 
 _CONCURRENCY = 4
+_ATTEMPTS = 6
+_BACKOFF_SECONDS = 5
 
 
 def filename(word: Word, voice: Voice) -> str:
@@ -37,7 +40,17 @@ def filename(word: Word, voice: Voice) -> str:
 async def _synthesize(text: str, voice: Voice, path: Path, gate: asyncio.Semaphore) -> None:
     async with gate:
         partial = path.with_suffix(".partial")
-        await edge_tts.Communicate(text, voice.name).save(str(partial))
+        for attempt in range(_ATTEMPTS):
+            try:
+                await edge_tts.Communicate(text, voice.name).save(str(partial))
+                break
+            except (aiohttp.WSServerHandshakeError, edge_tts.exceptions.NoAudioReceived):
+                # After a burst of requests the service refuses connections, or answers
+                # without audio, for a while.
+                if attempt == _ATTEMPTS - 1:
+                    partial.unlink(missing_ok=True)
+                    raise
+                await asyncio.sleep(_BACKOFF_SECONDS * 2**attempt)
         partial.rename(path)
 
 
