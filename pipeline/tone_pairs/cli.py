@@ -42,7 +42,7 @@ def report(families: list[Family]) -> None:
             print(f"    WARNING {warning}")
 
 
-def word_json(word: Word, family: Family) -> dict[str, object]:
+def word_json(word: Word, family: Family, audio: Path) -> dict[str, object]:
     return {
         "id": word.id,
         "hanzi": word.hanzi,
@@ -54,7 +54,7 @@ def word_json(word: Word, family: Family) -> dict[str, object]:
         "real": word.real,
         "family": family.key,
         "exercises": family.exercises,
-        "audio": {v.key: f"audio/{tts.filename(word, v)}" for v in tts.VOICES},
+        "audio": {v.key: tts.url(word, v, audio) for v in tts.VOICES},
     }
 
 
@@ -62,6 +62,7 @@ def manifest(
     exercises: list[tuple[str, str]],
     families: list[Family],
     timings: dict[str, timing.Timing],
+    audio: Path,
 ) -> dict[str, object]:
     return {
         "exercises": [{"id": id, "title": title} for id, title in exercises],
@@ -72,11 +73,11 @@ def manifest(
                 "printed": f.printed,
                 "exercises": f.exercises,
                 "words": [w.id for w in f.words],
-                "contrasts": [word_json(w, f) for w in f.contrasts],
+                "contrasts": [word_json(w, f, audio) for w in f.contrasts],
             }
             for f in families
         ],
-        "words": [word_json(w, f) for f in families for w in f.words],
+        "words": [word_json(w, f, audio) for f in families for w in f.words],
         "timing": {path: [t.start, t.split, t.end] for path, t in sorted(timings.items())},
     }
 
@@ -110,13 +111,13 @@ def main() -> None:
         for voice in tts.VOICES:
             path = audio / tts.filename(word, voice)
             if path.exists():
-                timings[f"audio/{path.name}"] = timing.measure(
+                timings[tts.url(word, voice, audio)] = timing.measure(
                     path, voice.pitch_floor, voice.pitch_ceiling
                 )
 
     out = PUBLIC / "data" / "words.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    data = manifest([(ex.id, ex.title) for ex in exercises], families, timings)
+    data = manifest([(ex.id, ex.title) for ex in exercises], families, timings, audio)
     out.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     drill = sum(len(f.words) for f in families)
     print(f"wrote {out.relative_to(ROOT)}: {drill} drill words, {len(recorded)} recorded words")

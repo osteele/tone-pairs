@@ -99,6 +99,18 @@ def test_words_with_the_same_reading_have_distinct_ids_and_recordings():
     assert tts.filename(_word("时间", (2, 1)), voice) == "shi2jian1-89b4aa-xiaoxiao.mp3"
 
 
+def test_recording_url_changes_when_the_recording_does(tmp_path):
+    word, voice = _word("时间", (2, 1)), tts.VOICES[0]
+    assert tts.url(word, voice, tmp_path) == "audio/shi2jian1-89b4aa-xiaoxiao.mp3"
+    path = tmp_path / tts.filename(word, voice)
+    path.write_bytes(b"first")
+    first = tts.url(word, voice, tmp_path)
+    assert first.startswith("audio/shi2jian1-89b4aa-xiaoxiao.mp3?v=")
+    assert tts.url(word, voice, tmp_path) == first
+    path.write_bytes(b"second")
+    assert tts.url(word, voice, tmp_path) != first
+
+
 def test_choose_puts_printed_tones_first_and_keeps_patterns_distinct():
     pool = [_word("世间", (4, 1), 4.0), _word("时间", (2, 1), 5.9), _word("视奸", (4, 1), 3.5)]
     printed = parse_printed("shìjiān", VALID)

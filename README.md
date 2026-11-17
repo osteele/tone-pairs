@@ -2,7 +2,9 @@
 
 A listening drill for the tones of two-syllable Mandarin words, built from the
 pronunciation exercises in the *HSK Standard Course 1* workbook. It runs as a
-web app saved to the iPhone home screen and works offline once loaded.
+web app saved to the iPhone home screen. The app itself loads in seconds; the
+recordings (about 60 MB) then download in the background, with progress shown
+on the home screen, and once they have the drill works offline.
 
 Live at <https://tone-pairs.pages.dev>. Source at <https://github.com/osteele/tone-pairs>.
 

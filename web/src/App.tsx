@@ -8,6 +8,7 @@ import type { Progress, Scheduler } from "./progress";
 import { createScheduler, loadProgress, migrateIds, saveProgress } from "./progress";
 import type { Mode, Prompt } from "./session";
 import { clipFor, nextPrompt } from "./session";
+import { useOfflineRecordings } from "./useOfflineRecordings";
 
 interface Session {
   /** Distinct per session, so starting one from the end of another remounts the drill. */
@@ -22,6 +23,7 @@ export function App() {
   const [progress, setProgress] = useState<Progress>(loadProgress);
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const recordings = useOfflineRecordings(deck, progress.settings.scope, progress.cards);
 
   useEffect(() => {
     Promise.all([loadDeck(), createScheduler()]).then(
@@ -66,5 +68,13 @@ export function App() {
       />
     );
   }
-  return <Home deck={deck} progress={progress} setProgress={setProgress} onStart={start} />;
+  return (
+    <Home
+      deck={deck}
+      progress={progress}
+      setProgress={setProgress}
+      onStart={start}
+      recordings={recordings}
+    />
+  );
 }

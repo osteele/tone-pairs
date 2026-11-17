@@ -4,6 +4,8 @@ import { About } from "./About";
 import type { Deck } from "./deck";
 import { ALL, wordsInScope } from "./deck";
 import { Modal } from "./Modal";
+import type { SyncStatus } from "./offline";
+import { describeRecordings } from "./offline";
 import type { Progress, Settings } from "./progress";
 import { localDate } from "./progress";
 import { countScope } from "./queue";
@@ -15,9 +17,11 @@ interface Props {
   progress: Progress;
   setProgress: (update: (p: Progress) => Progress) => void;
   onStart: (mode: Mode) => void;
+  /** Progress saving recordings for offline use; null where that is unsupported. */
+  recordings: SyncStatus | null;
 }
 
-export function Home({ deck, progress, setProgress, onStart }: Props) {
+export function Home({ deck, progress, setProgress, onStart, recordings }: Props) {
   const [panel, setPanel] = useState<"settings" | "about" | null>(null);
   const now = new Date();
   const allowed = newAllowed(progress, now);
@@ -100,10 +104,13 @@ export function Home({ deck, progress, setProgress, onStart }: Props) {
           Today: {todays.length} answers
           {todays.length > 0 && `, ${Math.round((100 * right) / todays.length)}% right`}
         </p>
+        {recordings && recordings.state !== "saved" && (
+          <p className="text-center text-sm text-stone-500">{describeRecordings(recordings)}</p>
+        )}
       </section>
 
       <Modal title="About" open={panel === "about"} onClose={() => setPanel(null)}>
-        <About />
+        <About recordings={recordings} />
       </Modal>
 
       <Modal title="Settings" open={panel === "settings"} onClose={() => setPanel(null)}>
