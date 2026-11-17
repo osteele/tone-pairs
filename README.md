@@ -4,7 +4,7 @@ A listening drill for the tones of two-syllable Mandarin words, built from the
 pronunciation exercises in the *HSK Standard Course 1* workbook. It runs as a
 web app saved to the iPhone home screen and works offline once loaded.
 
-Live at <https://tone-pairs.pages.dev>.
+Live at <https://tone-pairs.pages.dev>. Source at <https://github.com/osteele/tone-pairs>.
 
 ## How the drill works
 
@@ -74,3 +74,12 @@ Cloudflare.
 Sources: [CC-CEDICT](https://cc-cedict.org/) (CC BY-SA 4.0) for words, readings,
 and glosses; [wordfreq](https://github.com/rspeer/wordfreq) for word frequency;
 Microsoft Edge text-to-speech (via `edge-tts`) for the recordings.
+
+## License
+
+The code is released under the [MIT License](LICENSE). Copyright 2026 Oliver
+Steele.
+
+`web/public/data/words.json` is derived from CC-CEDICT and wordfreq data and is
+distributed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/),
+like its sources.

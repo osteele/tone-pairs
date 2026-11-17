@@ -26,7 +26,7 @@ export default defineConfig({
       },
       workbox: {
         // Precache every recording so the drill works offline once installed.
-        globPatterns: ["**/*.{js,css,html,png,json,mp3}"],
+        globPatterns: ["**/*.{js,css,html,png,svg,json,mp3}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
     }),

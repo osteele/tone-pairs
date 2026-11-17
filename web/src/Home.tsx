@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { FaGear } from "react-icons/fa6";
+import { FaCircleInfo, FaGear } from "react-icons/fa6";
+import { About } from "./About";
 import type { Deck } from "./deck";
 import { ALL, wordsInScope } from "./deck";
+import { Modal } from "./Modal";
 import type { Progress, Settings } from "./progress";
 import { localDate } from "./progress";
 import { countScope } from "./queue";
@@ -16,7 +18,7 @@ interface Props {
 }
 
 export function Home({ deck, progress, setProgress, onStart }: Props) {
-  const [showSettings, setShowSettings] = useState(false);
+  const [panel, setPanel] = useState<"settings" | "about" | null>(null);
   const now = new Date();
   const allowed = newAllowed(progress, now);
   const scopes = [{ id: ALL, title: "All lessons" }, ...deck.exercises];
@@ -34,14 +36,24 @@ export function Home({ deck, progress, setProgress, onStart }: Props) {
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-5 pt-[max(env(safe-area-inset-top),1.5rem)] pb-[max(env(safe-area-inset-bottom),1.5rem)]">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Tone Pairs</h1>
-        <button
-          type="button"
-          aria-label="Settings"
-          className="rounded-full p-2 text-stone-500 active:bg-stone-200"
-          onClick={() => setShowSettings((s) => !s)}
-        >
-          <FaGear size={20} />
-        </button>
+        <div className="flex">
+          <button
+            type="button"
+            aria-label="About"
+            className="rounded-full p-2 text-stone-500 active:bg-stone-200"
+            onClick={() => setPanel("about")}
+          >
+            <FaCircleInfo size={20} />
+          </button>
+          <button
+            type="button"
+            aria-label="Settings"
+            className="rounded-full p-2 text-stone-500 active:bg-stone-200"
+            onClick={() => setPanel("settings")}
+          >
+            <FaGear size={20} />
+          </button>
+        </div>
       </header>
 
       <section className="flex flex-col gap-2">
@@ -90,8 +102,12 @@ export function Home({ deck, progress, setProgress, onStart }: Props) {
         </p>
       </section>
 
-      {showSettings && (
-        <section className="flex flex-col gap-4 rounded-xl border border-stone-200 bg-white p-4">
+      <Modal title="About" open={panel === "about"} onClose={() => setPanel(null)}>
+        <About />
+      </Modal>
+
+      <Modal title="Settings" open={panel === "settings"} onClose={() => setPanel(null)}>
+        <div className="flex flex-col gap-4">
           <label className="flex items-center justify-between">
             <span>New words per day</span>
             <input
@@ -114,8 +130,8 @@ export function Home({ deck, progress, setProgress, onStart }: Props) {
             />
           </label>
           <Flagged progress={progress} setProgress={setProgress} />
-        </section>
-      )}
+        </div>
+      </Modal>
     </main>
   );
 }
