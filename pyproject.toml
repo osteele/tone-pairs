@@ -1,0 +1,38 @@
+[project]
+name = "tone-pairs"
+version = "0.1.0"
+description = "Build the word list and audio for the tone-pairs listening drill"
+authors = [
+    { name = "Oliver Steele", email = "steele@osteele.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "edge-tts>=7.3.1",
+    "praat-parselmouth>=0.4.7",
+    "wordfreq>=3.1.1",
+]
+
+[project.scripts]
+tone-pairs = "tone_pairs.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.6,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "pipeline"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.5",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["pipeline/tests"]

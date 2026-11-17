@@ -1,0 +1,24 @@
+# Dependencies and tool caches
+node_modules/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Downloaded CC-CEDICT
+.cache/
+
+# Workbook transcripts and the local settings that locate them (.env, TONE_PAIRS_TRANSCRIPTS)
+homework/hsk*.txt
+.env
+
+# Synthesized recordings: kept in the working directory, not published
+web/public/audio/
+web/public/data/recordings.json
+
+# Build output and Wrangler's local state
+dist/
+.wrangler/
+
+.DS_Store
