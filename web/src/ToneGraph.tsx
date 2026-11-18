@@ -25,6 +25,8 @@ const SAMPLES = 32;
 const STROKE = 6;
 /** The measured pitch: thin, so the contour it is drawn over shows around it. */
 const TRACK_STROKE = 1.5;
+/** Light enough that the textbook contour stays the first thing read. */
+const TRACK_OPACITY = 0.6;
 const JOIN_COLOR = "#a8a29e";
 
 const y = (level: number) => TOP + ((5 - level) / 4) * (H - TOP - BOTTOM);
@@ -106,9 +108,27 @@ export function ToneGraph({ line }: { line: GraphLine }) {
           </text>
         </g>
       ))}
+      {/* Dotted, as in the course's diagrams: how the pitch moves into the next syllable.
+          Drawn first, so both syllables' contours lie over it. */}
       {parts.map((syllable, i) => {
         const next = parts[i + 1];
+        if (!next) return null;
         const [x0, width] = syllable.span;
+        return (
+          <line
+            key={`join:${syllable.id}`}
+            x1={x0 + width}
+            y1={y(levelAt(syllable.levels, 1))}
+            x2={next.span[0]}
+            y2={y(levelAt(next.levels, 0))}
+            stroke={JOIN_COLOR}
+            strokeWidth={STROKE / 2}
+            strokeDasharray="2 5"
+            strokeLinecap="round"
+          />
+        );
+      })}
+      {parts.map((syllable) => {
         return (
           <g key={syllable.id}>
             <path
@@ -118,49 +138,39 @@ export function ToneGraph({ line }: { line: GraphLine }) {
               strokeWidth={STROKE}
               strokeLinecap="round"
             />
-            {/* Dotted, as in the course's diagrams: how the pitch moves into the next syllable. */}
-            {next && (
-              <line
-                x1={x0 + width}
-                y1={y(levelAt(syllable.levels, 1))}
-                x2={next.span[0]}
-                y2={y(levelAt(next.levels, 0))}
-                stroke={JOIN_COLOR}
-                strokeWidth={STROKE / 2}
-                strokeDasharray="2 5"
-                strokeLinecap="round"
-              />
-            )}
           </g>
         );
       })}
       {/* The measured pitch, on top of the textbook contour in a darker shade of its color,
           edged in a pale shade of it so it stays distinct where it crosses a contour of the same hue. It
           breaks wherever the recording is unvoiced: voiceless consonants have no pitch. */}
-      {line.track &&
-        parts.flatMap((syllable, i) => {
-          const d = trackPath(line.track?.[i] ?? [], syllable.span);
-          return [
-            <path
-              key={`edge:${syllable.id}`}
-              d={d}
-              fill="none"
-              stroke={TONE_PALE[syllable.tone]}
-              strokeWidth={TRACK_STROKE + 2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />,
-            <path
-              key={`track:${syllable.id}`}
-              d={d}
-              fill="none"
-              stroke={TONE_DARK[syllable.tone]}
-              strokeWidth={TRACK_STROKE}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />,
-          ];
-        })}
+      {line.track && (
+        <g opacity={TRACK_OPACITY}>
+          {parts.flatMap((syllable, i) => {
+            const d = trackPath(line.track?.[i] ?? [], syllable.span);
+            return [
+              <path
+                key={`edge:${syllable.id}`}
+                d={d}
+                fill="none"
+                stroke={TONE_PALE[syllable.tone]}
+                strokeWidth={TRACK_STROKE + 2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />,
+              <path
+                key={`track:${syllable.id}`}
+                d={d}
+                fill="none"
+                stroke={TONE_DARK[syllable.tone]}
+                strokeWidth={TRACK_STROKE}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />,
+            ];
+          })}
+        </g>
+      )}
       {playing && line.timing && playback && (
         <Playhead parts={parts} timing={line.timing} trail={STROKE + 4} time={playback.time} />
       )}

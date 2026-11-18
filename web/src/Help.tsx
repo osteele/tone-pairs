@@ -42,8 +42,10 @@ const SECTIONS: Record<HelpTopic, { title: string; body: ReactNode }> = {
           either order; the answer counts once both are chosen.
         </p>
         <p>
-          The play button replays the word. It spins while the word loads and is ringed while it
-          plays. If you don't know, tap <b>Show answer</b>; it counts as a miss.
+          The play button replays the word. It spins while the word loads, and a ring around it
+          fills as it plays. The voice's name, under it, plays the word in the next voice; the
+          answer then uses that voice. If you don't know, tap <b>Show answer</b>; it counts as a
+          miss.
         </p>
       </>
     ),
@@ -77,8 +79,8 @@ const SECTIONS: Record<HelpTopic, { title: string; body: ReactNode }> = {
       <p>
         Each family is a pair of syllables. Its grid has a row for each tone of the first syllable
         and a column for each tone of the second; tap a cell to hear it and see its pitch. Gray
-        cells have no recording; 3-3 is said 2-3, so it is listed there. <b>Real words only</b>{" "}
-        hides made-up words; the buttons above the grid choose the voice.
+        cells have no recording; 3-3 is said 2-3, so it is listed there. <b>Include non-words</b>{" "}
+        adds the made-up words; the buttons above the grid choose the voice.
       </p>
     ),
   },

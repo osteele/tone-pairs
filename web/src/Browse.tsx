@@ -68,7 +68,7 @@ export function Browse({ deck, scope, onBack }: Props) {
 }
 
 function FamilyGrid({ deck, family }: { deck: Deck; family: Family }) {
-  const [realOnly, setRealOnly] = useState(true);
+  const [nonWords, setNonWords] = useState(false);
   const [voice, setVoice] = useState(deck.voices[0]!.key);
   const [selected, setSelected] = useState<Word | null>(null);
   const words = deck.words.filter((w) => w.family === family.key);
@@ -88,11 +88,11 @@ function FamilyGrid({ deck, family }: { deck: Deck; family: Family }) {
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
-            checked={realOnly}
-            onChange={(e) => setRealOnly(e.target.checked)}
+            checked={nonWords}
+            onChange={(e) => setNonWords(e.target.checked)}
             className="size-4"
           />
-          Real words only
+          Include non-words
         </label>
         <span className="flex-1" />
         {deck.voices.map((v) => (
@@ -117,7 +117,7 @@ function FamilyGrid({ deck, family }: { deck: Deck; family: Family }) {
           SECOND.map((b) => {
             const pattern: Tone[] = [a, b];
             const word = wordFor(all, pattern);
-            const shown = word && (!realOnly || word.real) && recordingOf(deck, word, voice);
+            const shown = word && (nonWords || word.real) && recordingOf(deck, word, voice);
             const key = `${a}-${b}`;
             if (!word || !shown) {
               return (

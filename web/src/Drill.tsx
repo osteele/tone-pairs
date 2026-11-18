@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FaArrowRight,
+  FaArrowsRotate,
   FaCheck,
   FaFlag,
   FaPen,
@@ -172,6 +173,17 @@ export function Drill({
     if (prompt && !result) submit([], true);
   };
 
+  /** Play the word in the next voice that recorded it; the feedback then uses that voice. */
+  const nextVoice = () => {
+    if (!prompt || result) return;
+    const voices = deck.voices.filter((v) => clipFor(deck, prompt.word, v.key));
+    const at = voices.findIndex((v) => v.key === prompt.voice);
+    const next = voices[(at + 1) % voices.length];
+    if (!next || next.key === prompt.voice) return;
+    setPrompt({ ...prompt, voice: next.key });
+    void say(prompt.word, next.key);
+  };
+
   const hear = (word: Word) => {
     cancelAdvance();
     if (prompt) void say(word, prompt.voice);
@@ -198,6 +210,8 @@ export function Drill({
         const tone = Number(e.key) as Tone;
         if (choices[0] === null && tone !== 5) pick(0, tone);
         else if (choices[1] === null) pick(1, tone);
+      } else if (e.key === "v" && !result) {
+        nextVoice();
       } else if (e.key === "Backspace" && !result) {
         setChoices([null, null]);
       }
@@ -270,6 +284,12 @@ export function Drill({
   const playing = promptClip !== undefined && playback?.clip?.path === promptClip.path;
   // From the tap until sound comes out: loading, then the player's own start-up delay.
   const loading = starting || (playing && playback?.waiting === true);
+  // How much of the word has played, for the ring around the play button.
+  const played =
+    playing && !loading && promptClip?.stopAt
+      ? Math.min(1, (playback?.time ?? 0) / promptClip.stopAt)
+      : 0;
+  const voiceLabel = deck.voices.find((v) => v.key === prompt.voice)?.label ?? prompt.voice;
 
   return shell(
     <>
@@ -287,23 +307,41 @@ export function Drill({
               );
             })}
           </p>
+          <div
+            className="rounded-full p-1.5"
+            style={{
+              background:
+                playing && !loading
+                  ? `conic-gradient(#14b8a6 ${played * 360}deg, #ccfbf1 0)`
+                  : "transparent",
+            }}
+          >
+            <button
+              type="button"
+              aria-label={playing ? "Playing; tap to play again" : "Play again"}
+              onClick={() => hear(word)}
+              className={`flex size-28 items-center justify-center rounded-full text-white shadow-md transition active:scale-95 ${
+                blocked
+                  ? "animate-pulse bg-amber-500"
+                  : playing && !loading
+                    ? "bg-teal-700"
+                    : "bg-teal-600"
+              }`}
+            >
+              {loading ? (
+                <FaSpinner size={44} className="animate-spin" />
+              ) : (
+                <FaVolumeHigh size={48} />
+              )}
+            </button>
+          </div>
           <button
             type="button"
-            aria-label={playing ? "Playing; tap to play again" : "Play again"}
-            onClick={() => hear(word)}
-            className={`flex size-28 items-center justify-center rounded-full text-white shadow-md transition active:scale-95 ${
-              blocked
-                ? "animate-pulse bg-amber-500"
-                : playing && !loading
-                  ? "bg-teal-700 ring-8 ring-teal-300"
-                  : "bg-teal-600"
-            }`}
+            onClick={nextVoice}
+            aria-label={`Voice: ${voiceLabel}. Tap for the next voice`}
+            className="-mt-4 flex items-center gap-1.5 rounded-full px-3 py-1 text-sm text-stone-500 active:bg-stone-200"
           >
-            {loading ? (
-              <FaSpinner size={44} className="animate-spin" />
-            ) : (
-              <FaVolumeHigh size={48} />
-            )}
+            {voiceLabel} <FaArrowsRotate size={11} />
           </button>
           {blocked && <p className="text-sm text-amber-700">Tap to play</p>}
         </section>

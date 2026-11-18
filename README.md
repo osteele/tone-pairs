@@ -29,15 +29,16 @@ The switch at the top of the start screen sets what tapping a lesson does:
   schedule, and moves on by itself after a right answer.
 - *Browse* lists the lesson's syllables (`shi jian`, `pi jiu`, …). Pick one to
   see its tone patterns, a row for each tone of the first syllable and a column
-  for each of the second, and tap any to hear it and see its pitch. *Real words
-  only* hides the made-up ones.
+  for each of the second, and tap any to hear it and see its pitch. *Include
+  non-words* adds the made-up ones.
 
 You hear a word and see its pinyin without tone marks. The play button spins
-while the word loads and is ringed while it plays; tap it to hear the word
-again, or tap *Show answer* if you don't know. Tap a tone for each
+while the word loads, and a ring around it fills as the word plays; tap it to
+hear the word again, or tap *Show answer* if you don't know. Tap a tone for each
 syllable, in either order; the answer counts once both are chosen. Each word is
 spoken by one of four synthesized voices (two women, two men), chosen at random
-each time. The words are the workbook's, together with other words, and
+each time; tap the voice's name under the play button to hear the word in the
+next voice. The words are the workbook's, together with other words, and
 made-up "pseudo-words", that share their syllables but differ in tone, so the
 answer cannot be remembered from the workbook.
 
