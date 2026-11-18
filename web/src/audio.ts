@@ -47,11 +47,16 @@ let index = 0;
 let looping = false;
 let pending: number | undefined;
 let frame: number | undefined;
+// From the moment a clip is asked to play until it stops, including the wait for its sound,
+// so a play button can show its state from the tap.
+let active = false;
 let generation = 0;
 // When the playing clip started, by performance.now(), or null until its sound starts (see
 // clock.ts). The clock measures time heard, so a slowed clip's position in the recording is
 // elapsed time times its speed, after its start.
 let startedAt: number | null = null;
+// Where the player stalled, and the clock's reading then, while it is stalled.
+let stall: { at: number; elapsed: number } | null = null;
 const listeners = new Set<Listener>();
 
 const elapsed = () => (startedAt === null ? 0 : (performance.now() - startedAt) / 1000);
@@ -59,11 +64,12 @@ const elapsed = () => (startedAt === null ? 0 : (performance.now() - startedAt) 
 const position = (clip: Clip) => (clip.startAt ?? 0) + elapsed() * (clip.rate ?? 1);
 
 function emit(): void {
-  const clip = frame === undefined ? null : (sequence[index] ?? null);
+  const clip = active ? (sequence[index] ?? null) : null;
   const state: Playback = {
     clip,
-    time: clip ? position(clip) : 0,
-    waiting: frame !== undefined && startedAt === null,
+    // The smoothed clock can run a frame past the stop; the playhead stops where the clip does.
+    time: clip ? Math.min(position(clip), clip.stopAt ?? Number.POSITIVE_INFINITY) : 0,
+    waiting: active && startedAt === null,
     index,
     looping,
   };
@@ -79,6 +85,7 @@ function halt(): void {
   window.clearTimeout(pending);
   if (frame !== undefined) cancelAnimationFrame(frame);
   frame = undefined;
+  active = false;
   player.pause();
 }
 
@@ -94,8 +101,15 @@ function tick(): void {
   if (!clip) return;
   // The player's position, as time heard since the clip's start.
   const heard = (player.currentTime - (clip.startAt ?? 0)) / (clip.rate ?? 1);
-  startedAt = anchor(startedAt, performance.now(), heard);
-  if (clip.stopAt !== undefined && position(clip) >= clip.stopAt) {
+  if (stall && player.currentTime <= stall.at) {
+    startedAt = performance.now() - stall.elapsed * 1000;
+  } else {
+    stall = null;
+    startedAt = anchor(startedAt, performance.now(), heard);
+  }
+  // Whether the clip is done is the player's own report of its position, not the smoothed
+  // clock, which only places the playhead.
+  if (clip.stopAt !== undefined && player.currentTime >= clip.stopAt) {
     finishClip();
     return;
   }
@@ -133,6 +147,9 @@ async function start(run: number): Promise<PlayResult> {
   player.defaultPlaybackRate = clip.rate ?? 1;
   player.playbackRate = clip.rate ?? 1;
   startedAt = null;
+  stall = null;
+  active = true;
+  emit();
   try {
     await player.play();
   } catch (error) {
@@ -148,6 +165,12 @@ async function start(run: number): Promise<PlayResult> {
   frame = requestAnimationFrame(tick);
   return "played";
 }
+
+// While the player stalls to buffer, the playhead waits with it, until the player's position
+// moves past where it stalled.
+player.addEventListener("waiting", () => {
+  if (active && startedAt !== null) stall = { at: player.currentTime, elapsed: elapsed() };
+});
 
 player.addEventListener("ended", () => {
   if (frame !== undefined) finishClip();

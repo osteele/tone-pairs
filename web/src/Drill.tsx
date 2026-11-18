@@ -329,12 +329,12 @@ export function Drill({
             })}
           </p>
           <div
-            className="rounded-full p-1.5"
+            // The ring appears at the tap, pulsing until the sound starts, then fills as it plays.
+            className={`rounded-full p-1.5 ${playing && loading ? "animate-pulse" : ""}`}
             style={{
-              background:
-                playing && !loading
-                  ? `conic-gradient(#14b8a6 ${played * 360}deg, #ccfbf1 0)`
-                  : "transparent",
+              background: playing
+                ? `conic-gradient(#14b8a6 ${played * 360}deg, #ccfbf1 0)`
+                : "transparent",
             }}
           >
             <button
