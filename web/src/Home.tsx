@@ -62,7 +62,21 @@ export function Home({ deck, progress, setProgress, onStart, recordings }: Props
 
       <section className="flex flex-col gap-2">
         {scopes.map((scope) => {
-          const counts = countScope(wordsInScope(deck, scope.id), progress.cards, now);
+          const words = wordsInScope(deck, scope.id);
+          // A lesson whose pronunciation exercises have no two-syllable items is listed
+          // anyway, so its absence from the drill does not look like a fault.
+          if (words.length === 0) {
+            return (
+              <div
+                key={scope.id}
+                className="flex items-center justify-between rounded-xl border border-dashed border-stone-200 px-4 py-3 text-stone-400"
+              >
+                <span className="font-medium">{scope.title}</span>
+                <span className="text-sm">no tone pairs to drill</span>
+              </div>
+            );
+          }
+          const counts = countScope(words, progress.cards, now);
           const selected = progress.settings.scope === scope.id;
           return (
             <button

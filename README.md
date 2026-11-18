@@ -58,9 +58,12 @@ again, and Settings lists the flagged recordings so they can be fixed.
    `homework/hsk1-NN.txt`, one question per line: `9. fang men / fangjian`.
    Copy the pinyin as printed, with or without tone marks. A read-aloud list
    gets one word per line. Where the book leaves one syllable bare for you to
-   mark (the 不 in `bu shì`), copy the item with no tone marks.
-2. If an item is not in CC-CEDICT (`mén hòu`), or CC-CEDICT gives it more than
-   one reading (不是), add it to `homework/extra-words.tsv`.
+   mark (the 不 in `bu shì`), copy the item with no tone marks. A lesson with
+   no two-syllable items still gets a file, holding only comments that say
+   why; the app lists it as having nothing to drill.
+2. If an item is not in CC-CEDICT (`mén hòu`), CC-CEDICT gives it more than
+   one reading (不是), or lists it only as a proper noun (春节), add it to
+   `homework/extra-words.tsv`.
 3. `just data` rebuilds `web/public/data/words.json`, prints the chosen
    families, and synthesizes any new recordings.
 4. `just deploy`.

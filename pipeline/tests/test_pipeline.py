@@ -11,6 +11,7 @@ from tone_pairs.families import (
     gloss,
     neighbors,
 )
+from tone_pairs.homework import read_exercise
 from tone_pairs.pinyin import marked_word, parse_printed, spoken_tones
 
 VALID = frozenset(
@@ -109,6 +110,14 @@ def test_recording_url_changes_when_the_recording_does(tmp_path):
     assert tts.url(word, voice, tmp_path) == first
     path.write_bytes(b"second")
     assert tts.url(word, voice, tmp_path) != first
+
+
+def test_a_lesson_with_nothing_to_drill_is_still_an_exercise(tmp_path):
+    path = tmp_path / "hsk1-05.txt"
+    path.write_text("# No two-syllable items in this lesson.\n", encoding="utf-8")
+    exercise = read_exercise(path, VALID)
+    assert exercise.title == "HSK 1 · Lesson 5"
+    assert exercise.items == []
 
 
 def test_choose_puts_printed_tones_first_and_keeps_patterns_distinct():

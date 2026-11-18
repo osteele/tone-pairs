@@ -1,5 +1,6 @@
-# Phrases printed in the homework that CC-CEDICT lacks, or lists with more than one reading
-# (不是 bù shì / bù shi): hanzi<TAB>numbered pinyin<TAB>gloss
+# Phrases printed in the homework that CC-CEDICT lacks, lists with more than one reading
+# (不是 bù shì / bù shi), or lists only as a proper noun (春节, read Chun1 jie2, which the
+# dictionary loader skips): hanzi<TAB>numbered pinyin<TAB>gloss
 门后	men2 hou4	behind the door
 不是	bu4 shi4	no; is not
 不看	bu4 kan4	not look; not read
@@ -14,3 +15,4 @@
 一瓶	yi1 ping2	one bottle
 一晚	yi1 wan3	one night
 很好	hen3 hao3	very good
+春节	chun1 jie2	Spring Festival (Chinese New Year)
