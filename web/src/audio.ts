@@ -107,14 +107,10 @@ const url = (path: string) => new URL(`${import.meta.env.BASE_URL}${path}`, loca
 
 async function start(run: number): Promise<PlayResult> {
   const clip = sequence[index]!;
-  if (player.src === url(clip.path)) {
-    // Assigning the same source again makes Safari load and decode the file anew, a delay
-    // heard on every replay; rewinding reuses what is loaded. Clips always start at 0:
-    // Safari's seeking within an MP3 is imprecise, and can land in the second syllable.
-    player.currentTime = 0;
-  } else {
-    player.src = url(clip.path);
-  }
+  // The source is assigned on every play, even a replay of the same clip. Rewinding the
+  // loaded clip instead (currentTime = 0) made every other replay in Safari break up into
+  // snippets separated by silence.
+  player.src = url(clip.path);
   try {
     await player.play();
   } catch (error) {
