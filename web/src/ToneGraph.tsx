@@ -1,6 +1,6 @@
 import { levelAt, patternLevels, placeAt, syllableWeights } from "./contour";
 import type { Pattern, PitchTrack, Timing, Tone } from "./deck";
-import { TONE_COLORS } from "./tones";
+import { TONE_COLORS, TONE_DARK, TONE_PALE } from "./tones";
 import { usePlayback } from "./usePlayback";
 
 export interface GraphLine {
@@ -10,7 +10,7 @@ export interface GraphLine {
   /** The recording this line animates along, with its timing; absent if there is none. */
   path?: string;
   timing?: Timing;
-  /** The recording's measured pitch, drawn faintly behind the idealized contour. */
+  /** The recording's measured pitch, drawn over the idealized contour. */
   track?: PitchTrack;
 }
 
@@ -23,6 +23,8 @@ const BOTTOM = 10;
 const GAP = 18;
 const SAMPLES = 32;
 const STROKE = 6;
+/** The measured pitch: thin, so the contour it is drawn over shows around it. */
+const TRACK_STROKE = 1.5;
 const JOIN_COLOR = "#a8a29e";
 
 const y = (level: number) => TOP + ((5 - level) / 4) * (H - TOP - BOTTOM);
@@ -81,7 +83,7 @@ function trackPath(points: readonly (number | null)[], [x0, width]: [number, num
 
 /**
  * The idealized contour of one tone pattern on the five-level staff, each syllable in its
- * tone's color, with the recording's measured pitch faintly behind it and a dot that follows
+ * tone's color, with the recording's measured pitch drawn over it in a darker shade and a dot that follows
  * the recording while it plays. The caller says which word the staff shows.
  */
 export function ToneGraph({ line }: { line: GraphLine }) {
@@ -104,19 +106,6 @@ export function ToneGraph({ line }: { line: GraphLine }) {
           </text>
         </g>
       ))}
-      {line.track &&
-        parts.map((syllable, i) => (
-          <path
-            key={`track:${syllable.id}`}
-            d={trackPath(line.track?.[i] ?? [], syllable.span)}
-            fill="none"
-            stroke={TONE_COLORS[syllable.tone]}
-            strokeOpacity={0.35}
-            strokeWidth={2.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        ))}
       {parts.map((syllable, i) => {
         const next = parts[i + 1];
         const [x0, width] = syllable.span;
@@ -145,6 +134,33 @@ export function ToneGraph({ line }: { line: GraphLine }) {
           </g>
         );
       })}
+      {/* The measured pitch, on top of the textbook contour in a darker shade of its color,
+          edged in a pale shade of it so it stays distinct where it crosses a contour of the same hue. It
+          breaks wherever the recording is unvoiced: voiceless consonants have no pitch. */}
+      {line.track &&
+        parts.flatMap((syllable, i) => {
+          const d = trackPath(line.track?.[i] ?? [], syllable.span);
+          return [
+            <path
+              key={`edge:${syllable.id}`}
+              d={d}
+              fill="none"
+              stroke={TONE_PALE[syllable.tone]}
+              strokeWidth={TRACK_STROKE + 2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />,
+            <path
+              key={`track:${syllable.id}`}
+              d={d}
+              fill="none"
+              stroke={TONE_DARK[syllable.tone]}
+              strokeWidth={TRACK_STROKE}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />,
+          ];
+        })}
       {playing && line.timing && playback && (
         <Playhead parts={parts} timing={line.timing} trail={STROKE + 4} time={playback.time} />
       )}

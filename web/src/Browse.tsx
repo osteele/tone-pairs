@@ -3,6 +3,7 @@ import { FaArrowLeft } from "react-icons/fa6";
 import { play } from "./audio";
 import type { Deck, Family, Tone, Word } from "./deck";
 import { ALL, recorded, recordingOf, wordFor } from "./deck";
+import { HelpButton } from "./Help";
 import { markSyllable } from "./pinyin";
 import { clipFor } from "./session";
 import { ToneGraph } from "./ToneGraph";
@@ -36,7 +37,8 @@ export function Browse({ deck, scope, onBack }: Props) {
         >
           <FaArrowLeft size={20} />
         </button>
-        <h1 className="text-lg font-semibold">{family ? family.key : title}</h1>
+        <h1 className="flex-1 text-lg font-semibold">{family ? family.key : title}</h1>
+        <HelpButton topic="browse" />
       </header>
       {family ? (
         <FamilyGrid deck={deck} family={family} />

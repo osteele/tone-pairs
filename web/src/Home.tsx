@@ -3,6 +3,7 @@ import { FaCircleInfo, FaGear } from "react-icons/fa6";
 import { About } from "./About";
 import type { Deck } from "./deck";
 import { ALL, drillWords, wordsInScope } from "./deck";
+import { HelpButton } from "./Help";
 import { Modal } from "./Modal";
 import type { SyncStatus } from "./offline";
 import { describeRecordings } from "./offline";
@@ -55,6 +56,7 @@ export function Home({ deck, progress, setProgress, onStart, onBrowse, recording
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Tone Pairs</h1>
         <div className="flex">
+          <HelpButton topic="start" />
           <button
             type="button"
             aria-label="About"

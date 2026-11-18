@@ -50,12 +50,15 @@ another syllable, rather than the full 214 of a third tone said alone. A neutral
 tone is a short pitch set by the tone before it. A dotted line joins the two
 syllables, showing how the pitch moves from one into the next.
 
-The faint line is the pitch measured in the recording with Praat, mapped onto
-the same scale: each voice's 5th and 95th percentile pitch, over a sample of its
+The thin dark line, drawn over the contour, is the pitch measured in the
+recording with Praat, mapped onto the same scale: each voice's 5th and 95th percentile pitch, over a sample of its
 recordings, are levels 1 and 5. The measured line is often flatter than the
 textbook one, and differs from it in ways worth hearing: before another
 syllable, a second tone may rise only a little, and a final third tone may fall
-rather than dip.
+rather than dip. It breaks wherever the recording has no pitch: voiceless
+consonants (s, sh, x, f, h, p, t, k, and the like) are made without vibrating
+the vocal folds, and the creaky bottom of a third tone often defeats the pitch
+tracker.
 
 Each recording's timing (where speech starts, where the syllables divide, and
 where it ends) is measured too, to move the dot along the contour as it plays

@@ -1,6 +1,6 @@
 # Roadmap
 
-- **Hide the measured pitch.** A setting to turn off the faint line of the
+- **Hide the measured pitch.** A setting to turn off the thin line of the
   recording's measured pitch behind each contour.
 - **Tone color palettes.** Choose among the common tone color schemes, or
   define your own, in place of the Pleco/MDBG colors.

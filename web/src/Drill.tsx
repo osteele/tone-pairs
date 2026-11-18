@@ -15,6 +15,7 @@ import { play, playSequence, prefetch, stop } from "./audio";
 import type { Deck, Pattern, Tone, Word } from "./deck";
 import { recordedIn, recordingOf, siblings } from "./deck";
 import { isCorrect, spokenForm, wordForAnswer } from "./grading";
+import { HelpButton } from "./Help";
 import { whileLoading } from "./loading";
 import { markSyllable, samePattern } from "./pinyin";
 import type { Progress, Scheduler } from "./progress";
@@ -219,13 +220,14 @@ export function Drill({
       >
         <FaXmark size={22} />
       </button>
-      <span className="text-sm text-stone-500">
+      <span className="flex items-center gap-1 text-sm text-stone-500">
         {[
           mode === "extra" ? "Extra practice" : "",
           tally.answered > 0 ? `${tally.right}/${tally.answered} right` : "",
         ]
           .filter(Boolean)
           .join(" · ")}
+        <HelpButton topic={result ? "feedback" : "question"} />
       </span>
     </header>
   );
