@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { FaCircleInfo, FaGear } from "react-icons/fa6";
 import { About } from "./About";
 import type { Deck } from "./deck";
-import { ALL, wordsInScope } from "./deck";
+import { ALL, drillWords, wordsInScope } from "./deck";
 import { Modal } from "./Modal";
 import type { SyncStatus } from "./offline";
 import { describeRecordings } from "./offline";
@@ -96,10 +96,10 @@ export function Home({ deck, progress, setProgress, onStart, onBrowse, recording
 
       <section className="flex flex-col gap-2">
         {scopes.map((scope) => {
-          const words = wordsInScope(deck, scope.id);
+          const words = drillWords(deck, scope.id, progress.settings.realOnly);
           // A lesson whose pronunciation exercises have no two-syllable items is listed
           // anyway, so its absence from the drill does not look like a fault.
-          if (words.length === 0) {
+          if (wordsInScope(deck, scope.id).length === 0) {
             return (
               <div
                 key={scope.id}
@@ -170,6 +170,15 @@ export function Home({ deck, progress, setProgress, onStart, onBrowse, recording
               value={progress.settings.newPerDay}
               onChange={(e) => update({ newPerDay: Math.max(0, Number(e.target.value)) })}
               className="w-20 rounded border border-stone-300 px-2 py-1 text-right"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-4">
+            <span>Only real words (leave out the made-up words that fill out each family)</span>
+            <input
+              type="checkbox"
+              checked={progress.settings.realOnly}
+              onChange={(e) => update({ realOnly: e.target.checked })}
+              className="size-5 shrink-0"
             />
           </label>
           <label className="flex items-center justify-between">

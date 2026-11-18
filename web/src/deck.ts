@@ -112,6 +112,11 @@ export function recordingOf(deck: Deck, word: Word, voice: string): Recording | 
   return measured && { url: `${path}?v=${measured.v}`, timing: measured.t, track: measured.p };
 }
 
+/** The words drilled in a lesson: all of them, or only real words when `realOnly`. */
+export function drillWords(deck: Deck, scope: string, realOnly: boolean): Word[] {
+  return wordsInScope(deck, scope).filter((w) => w.real || !realOnly);
+}
+
 export function wordsInScope(deck: Deck, scope: string): Word[] {
   return scope === ALL ? deck.words : deck.words.filter((w) => w.exercises.includes(scope));
 }

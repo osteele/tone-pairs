@@ -69,7 +69,8 @@ Words come back on a spaced-repetition schedule: one you miss returns within
 minutes, one you get right days later. New words are introduced a few at a
 time, 20 a day by default (Settings, the ⚙ button). While a word is new, a
 right answer stays on screen for review, as a wrong one does; *Show answer*
-counts as a miss. Progress is stored on the device; Settings can erase it.
+counts as a miss. Settings can limit the drill to real words, leaving out the
+made-up ones. Progress is stored on the device; Settings can erase it.
 
 If a recording sounds wrong, tap *Bad audio*: that recording is not played
 again, and Settings lists the flagged recordings so they can be fixed. *About*

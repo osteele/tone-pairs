@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { levelAt, patternLevels, placeAt, syllableWeights } from "./contour";
 import type { Tone, Word } from "./deck";
-import { wordFor } from "./deck";
+import { drillWords, wordFor } from "./deck";
 import { acceptedAnswers, isCorrect, spokenForm, wordForAnswer } from "./grading";
 import { markSyllable } from "./pinyin";
 import { createScheduler, emptyProgress, migrateIds, parseProgress, record } from "./progress";
@@ -245,5 +245,16 @@ describe("browse", () => {
       settings: { newPerDay: 10, autoAdvance: true, scope: "all" },
     };
     expect(parseProgress(JSON.stringify(old)).settings.homeMode).toBe("learn");
+  });
+});
+
+describe("drill words", () => {
+  test("only real words are drilled when the setting is on", () => {
+    const real = word("r", "依次", [1, 4]);
+    const pseudo = { ...word("p", "依此", [2, 4]), real: false };
+    const deck = { exercises: [], voices: [], families: [], words: [real, pseudo], recordings: {} };
+    expect(drillWords(deck, "hsk1-07", false).map((w) => w.id)).toEqual(["r", "p"]);
+    expect(drillWords(deck, "hsk1-07", true).map((w) => w.id)).toEqual(["r"]);
+    expect(emptyProgress().settings.realOnly).toBe(false);
   });
 });

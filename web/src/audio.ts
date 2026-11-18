@@ -39,12 +39,19 @@ let looping = false;
 let pending: number | undefined;
 let frame: number | undefined;
 let generation = 0;
+// When the playing clip started, by performance.now(). The playhead is placed by time elapsed
+// since then rather than by the player's currentTime, which Safari updates only every few
+// hundred milliseconds, so a dot following it moves in jumps. Clips play from the start of
+// the file, so elapsed time is the position in the clip.
+let startedAt = 0;
 const listeners = new Set<Listener>();
+
+const elapsed = () => (performance.now() - startedAt) / 1000;
 
 function emit(): void {
   const state: Playback = {
     clip: frame === undefined ? null : (sequence[index] ?? null),
-    time: player.currentTime,
+    time: frame === undefined ? 0 : elapsed(),
     index,
     looping,
   };
@@ -72,7 +79,7 @@ export function stop(): void {
 
 function tick(): void {
   const clip = sequence[index];
-  if (clip?.stopAt !== undefined && player.currentTime >= clip.stopAt) {
+  if (clip?.stopAt !== undefined && elapsed() >= clip.stopAt) {
     finishClip();
     return;
   }
@@ -120,6 +127,7 @@ async function start(run: number): Promise<PlayResult> {
     throw error;
   }
   if (run !== generation) return "played";
+  startedAt = performance.now();
   frame = requestAnimationFrame(tick);
   return "played";
 }

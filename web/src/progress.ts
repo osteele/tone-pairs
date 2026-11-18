@@ -33,6 +33,8 @@ export interface Settings {
   /** The lesson last chosen. */
   scope: string;
   homeMode: HomeMode;
+  /** Drill only real words, leaving out the made-up pseudo-words that fill out families. */
+  realOnly: boolean;
 }
 
 export interface Progress {
@@ -55,6 +57,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoAdvance: true,
   scope: ALL,
   homeMode: "learn",
+  realOnly: false,
 };
 
 export function emptyProgress(): Progress {

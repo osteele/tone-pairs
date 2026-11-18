@@ -1,6 +1,6 @@
 import type { Clip } from "./audio";
 import type { Deck, Word } from "./deck";
-import { recorded, recordingOf, wordsInScope } from "./deck";
+import { drillWords, recorded, recordingOf } from "./deck";
 import type { Card, Progress } from "./progress";
 import { introducedOn, localDate } from "./progress";
 import type { Pick } from "./queue";
@@ -37,7 +37,7 @@ export function nextPrompt(
   lastId: string | undefined,
   now: Date,
 ): Prompt | null {
-  const scope = wordsInScope(deck, progress.settings.scope);
+  const scope = drillWords(deck, progress.settings.scope, progress.settings.realOnly);
   if (mode === "extra") {
     const others = scope.filter((w) => w.id !== lastId);
     const pool = others.length > 0 ? others : scope;

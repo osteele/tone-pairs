@@ -302,13 +302,6 @@ export function Drill({
             )}
           </button>
           {blocked && <p className="text-sm text-amber-700">Tap to play</p>}
-          <button
-            type="button"
-            onClick={reveal}
-            className="rounded-full px-3 py-1 text-sm text-stone-500 active:bg-stone-200"
-          >
-            Show answer
-          </button>
         </section>
       )}
 
@@ -324,6 +317,13 @@ export function Drill({
         />
       ) : (
         <section className="mt-auto flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={reveal}
+            className="self-center rounded-xl border border-stone-300 bg-white px-6 py-2.5 text-base font-medium text-stone-600 active:bg-stone-100"
+          >
+            Show answer
+          </button>
           <ToneRow
             syllable={word.syllables[0]!}
             tones={FIRST_TONES}
@@ -558,7 +558,9 @@ function Feedback({
 
       {others.length > 0 && (
         <div className="flex flex-col">
-          <p className="text-xs text-stone-500">Other words with these syllables</p>
+          <p className="text-xs text-stone-500">
+            {word.real || answered?.real ? "Other words" : "Words"} with these syllables
+          </p>
           {others.map((other) => (
             <div
               key={other.id}
