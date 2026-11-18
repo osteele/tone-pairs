@@ -26,6 +26,9 @@ FALLBACK_ZIPF = 2.0
 MIN_CHAR_ZIPF = 3.5
 # Contrast recordings (heard only when comparing a wrong answer) may use rarer characters.
 CONTRAST_CHAR_ZIPF = 2.5
+# A contrast with a third tone may use rarer characters still: re-pitching another
+# recording (resynthesis.py) cannot produce a third tone's creak.
+RARE_CHAR_ZIPF = 1.0
 
 # Every spoken pattern a two-syllable answer can name. Written 3-3 is said 2-3.
 ALL_PATTERNS: tuple[tuple[int, int], ...] = tuple(
@@ -58,6 +61,8 @@ class Word:
     gloss: str
     zipf: float
     real: bool = True
+    # For a recording made by re-pitching another word's recording (resynthesis.py): that word.
+    source: "Word | None" = None
 
     @property
     def pinyin(self) -> str:
@@ -65,9 +70,14 @@ class Word:
 
     @property
     def id(self) -> str:
-        """Tone-numbered pinyin plus a digest of the hanzi: 一次 and 依次 are both yi1ci4."""
+        """Tone-numbered pinyin plus a digest of the hanzi: 一次 and 依次 are both yi1ci4.
+
+        A re-pitched recording has no hanzi; its id names the word it was made from.
+        """
         pairs = zip(self.syllables, self.tones, strict=True)
         numbered = "".join(f"{s.replace('u:', 'v')}{t}" for s, t in pairs)
+        if self.source is not None:
+            return f"{numbered}-from-{self.source.id}"
         return f"{numbered}-{hashlib.sha1(self.hanzi.encode()).hexdigest()[:6]}"
 
 
@@ -270,11 +280,15 @@ def _fill_from(family: Family, chars: Mapping[tuple[str, int], Character]) -> No
 
 
 def add_contrasts(
-    family: Family, pool: list[Word], chars: Mapping[tuple[str, int], Character]
+    family: Family,
+    pool: list[Word],
+    chars: Mapping[tuple[str, int], Character],
+    rare_chars: Mapping[tuple[str, int], Character] | None = None,
 ) -> None:
     """Record every other spoken pattern: the most common real word, else a pseudo-word.
 
-    Patterns ending in a neutral tone get a recording only from a real word.
+    A pattern with a third tone may fall back to a pseudo-word of rarer characters. Patterns
+    ending in a neutral tone get a recording only from a real word.
     """
     for pattern in ALL_PATTERNS:
         if pattern in family.patterns or pattern in {w.spoken for w in family.contrasts}:
@@ -283,6 +297,8 @@ def add_contrasts(
         word = real[0] if real else None
         if word is None and NEUTRAL not in pattern:
             word = pseudo_word(family.syllables, pattern, chars)
+        if word is None and NEUTRAL not in pattern and 3 in pattern and rare_chars:
+            word = pseudo_word(family.syllables, pattern, rare_chars)
         if word is not None and word.spoken == pattern:
             family.contrasts.append(word)
 
@@ -293,6 +309,7 @@ def build_families(
     extras: Mapping[str, list[Word]],
     chars: Mapping[tuple[str, int], Character],
     contrast_chars: Mapping[tuple[str, int], Character],
+    rare_chars: Mapping[tuple[str, int], Character] | None = None,
 ) -> list[Family]:
     """Merge every printed item into one family per toneless key, then fill each family."""
     families: dict[str, Family] = {}
@@ -307,5 +324,5 @@ def build_families(
     for family in families.values():
         fill(family, chars, contrast_chars)
         pool = [*extras.get(family.key, []), *by_key.get(family.key, [])]
-        add_contrasts(family, pool, contrast_chars)
+        add_contrasts(family, pool, contrast_chars, rare_chars)
     return list(families.values())

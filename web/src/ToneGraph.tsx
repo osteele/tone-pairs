@@ -78,16 +78,34 @@ export function ToneGraph({ line }: { line: GraphLine }) {
           </text>
         </g>
       ))}
-      {syllables(line.key, line.pattern).map((syllable) => (
-        <path
-          key={syllable.id}
-          d={syllablePath(syllable.levels, syllable.span)}
-          fill="none"
-          stroke={line.color}
-          strokeWidth={STROKE}
-          strokeLinecap="round"
-        />
-      ))}
+      {syllables(line.key, line.pattern).map((syllable, i, all) => {
+        const next = all[i + 1];
+        const [x0, width] = syllable.span;
+        return (
+          <g key={syllable.id}>
+            <path
+              d={syllablePath(syllable.levels, syllable.span)}
+              fill="none"
+              stroke={line.color}
+              strokeWidth={STROKE}
+              strokeLinecap="round"
+            />
+            {/* Dotted, as in the course's diagrams: how the pitch moves into the next syllable. */}
+            {next && (
+              <line
+                x1={x0 + width}
+                y1={y(levelAt(syllable.levels, 1))}
+                x2={next.span[0]}
+                y2={y(levelAt(next.levels, 0))}
+                stroke={line.color}
+                strokeWidth={STROKE / 2}
+                strokeDasharray="2 5"
+                strokeLinecap="round"
+              />
+            )}
+          </g>
+        );
+      })}
       {playing && line.timing && playback && (
         <Playhead line={line} trail={STROKE + 4} time={playback.time} />
       )}

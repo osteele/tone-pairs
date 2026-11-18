@@ -12,7 +12,7 @@ import {
 import { play, playSequence, stop } from "./audio";
 import type { Deck, Tone, Word } from "./deck";
 import { recorded, siblings } from "./deck";
-import { isCorrect, wordForAnswer } from "./grading";
+import { isCorrect, spokenForm, wordForAnswer } from "./grading";
 import { markSyllable, samePattern } from "./pinyin";
 import type { Progress, Scheduler } from "./progress";
 import { record } from "./progress";
@@ -379,7 +379,7 @@ function Feedback({
   } else if (!result.correct) {
     compared = {
       key: "answered",
-      pattern: result.answer,
+      pattern: spokenForm(result.answer),
       label: `your answer ${answeredPinyin}`,
       color: ANSWERED,
       path: answeredClip?.path,
@@ -444,7 +444,11 @@ function Feedback({
             caption={
               picked
                 ? `Compared · ${picked.pinyin} ${picked.hanzi}`
-                : `Your answer · ${answeredPinyin}${answeredClip ? "" : " (no recording)"}`
+                : `Your answer · ${answeredPinyin}${
+                    samePattern(result.answer, spokenForm(result.answer))
+                      ? ""
+                      : `, said ${spokenForm(result.answer).join("-")}`
+                  }${answeredClip ? "" : " (no recording)"}`
             }
             line={compared}
           />
@@ -562,7 +566,14 @@ function WordRow({
   note?: string;
   onPlay: (() => void) | undefined;
 }) {
-  const meaning = word === undefined ? "no recording" : word.real ? word.gloss : "not a word";
+  const meaning =
+    word === undefined
+      ? "no recording"
+      : word.madeFrom
+        ? `re-pitched from ${word.madeFrom}`
+        : word.real
+          ? word.gloss
+          : "not a word";
   return (
     <div className="flex items-center gap-3">
       <span className="h-8 w-1.5 shrink-0 rounded" style={{ background: color }} />

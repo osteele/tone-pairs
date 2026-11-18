@@ -1,8 +1,10 @@
 /**
  * Idealized tone contours on Chao's five-level pitch scale (1 = low, 5 = high).
  *
- * These are the textbook shapes, not measured pitch: 55, 35, 214, 51. A third tone that is
- * not last is a half-third (21). A neutral tone is a short pitch set by the tone before it.
+ * These are classroom shapes, not measured pitch: 55, 35, 51, and a third tone as a low dip,
+ * 212 at the end of a word and 21 before another syllable, as the course draws them rather
+ * than the full 214 of a third tone said alone. A neutral tone is a short pitch set by the
+ * tone before it.
  */
 
 import type { Pattern, Timing, Tone } from "./deck";
@@ -19,7 +21,7 @@ export function syllableLevels(tone: Tone, previous: Tone | null, last: boolean)
     case 2:
       return [3, 5];
     case 3:
-      return last ? [2, 1, 4] : [2, 1, 1];
+      return last ? [2, 1, 2] : [2, 1, 1];
     case 4:
       return [5, 1];
     case 5: {

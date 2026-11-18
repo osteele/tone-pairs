@@ -1,5 +1,8 @@
+import math
+
+import parselmouth
 import pytest
-from tone_pairs import tts
+from tone_pairs import resynthesis, timing, tts
 from tone_pairs.cedict import parse_line
 from tone_pairs.families import (
     Character,
@@ -188,3 +191,81 @@ def test_contrasts_cover_other_patterns_preferring_real_words():
     # Neutral-tone patterns come only from real words.
     assert by_pattern[(2, 5)].real
     assert set(by_pattern) == {(2, 4), (4, 1), (4, 4), (2, 5)}
+
+
+def test_rare_characters_fill_only_third_tone_contrasts():
+    family = Family(syllables=("shi", "jian"), words=[_word("时间", (2, 1))])
+    chars = {("shi", 2): Character("时", "time", 5.0), ("jian", 1): Character("间", "between", 5.0)}
+    rare = {
+        **chars,
+        ("shi", 3): Character("豕", "pig", 1.5),
+        ("jian", 4): Character("涧", "ravine", 1.5),
+    }
+    add_contrasts(family, [], chars, rare)
+    by_pattern = {w.spoken: w.hanzi for w in family.contrasts}
+    assert by_pattern[(3, 1)] == "豕间"
+    # 时涧 (2, 4) has no third tone, so it is left for resynthesis.
+    assert (2, 4) not in by_pattern
+
+
+def test_resynthesis_sources_differ_in_fewest_syllables_and_prefer_real_words():
+    family = Family(
+        syllables=("shi", "jian"),
+        words=[_word("时间", (2, 1)), _word("事件", (4, 4))],
+        contrasts=[_word("十件", (2, 4), real=False), _word("时候", (2, 5))],
+    )
+    plans = {p.pattern: p for p in resynthesis.plan([family])}
+    assert (2, 1) not in plans and (4, 4) not in plans and (2, 4) not in plans
+    # (2, 2) is one syllable from 时间 and from 十件; the real word wins.
+    assert plans[(2, 2)].source.hanzi == "时间"
+    # (1, 4) is one syllable from 事件 only.
+    assert plans[(1, 4)].source.hanzi == "事件"
+    # A neutral-tone recording is never a source, and 3-3 is not a spoken answer.
+    assert all(p.source.hanzi != "时候" for p in plans.values())
+    assert (3, 3) not in plans
+    made = plans[(2, 2)].word
+    assert made.id == f"shi2jian2-from-{plans[(2, 2)].source.id}"
+    assert not made.real and made.source is not None
+
+
+def test_level_at_matches_the_app_contour_model():
+    assert resynthesis.level_at((5, 1), 0) == 5
+    assert resynthesis.level_at((5, 1), 0.5) == pytest.approx(3)
+    assert resynthesis.level_at((2, 1, 2), 1) == 2
+    assert resynthesis.syllable_levels(3, 2, last=True) == (2, 1, 2)
+    assert resynthesis.syllable_levels(3, None, last=False) == (2, 1, 1)
+
+
+def _thirds(path, voice, start, end):
+    """Mean pitch, in semitones above 100 Hz, of the first and last thirds of a span."""
+    pitch = parselmouth.Sound(str(path)).to_pitch_ac(
+        pitch_floor=voice.pitch_floor, pitch_ceiling=voice.pitch_ceiling
+    )
+    voiced = [
+        12 * math.log2(f / 100)
+        for t, f in zip(pitch.xs(), pitch.selected_array["frequency"], strict=True)
+        if start <= t <= end and f > 0
+    ]
+    n = len(voiced) // 3
+    return sum(voiced[:n]) / n, sum(voiced[-n:]) / n
+
+
+def test_resynthesis_reshapes_only_the_changed_syllable(tmp_path, two_syllables):
+    source = _word("时间", (2, 1))
+    voice = tts.VOICES[0]
+    original = tmp_path / tts.filename(source, voice)
+    two_syllables(original)
+    family = Family(syllables=("shi", "jian"), words=[source])
+    plan = next(p for p in resynthesis.plan([family]) if p.pattern == (2, 4))
+    assert resynthesis.render(plan, voice, tmp_path, span=(10.0, 21.0))
+
+    made = tmp_path / tts.filename(plan.word, voice)
+    before = timing.measure(original, voice.pitch_floor, voice.pitch_ceiling)
+    after = timing.measure(made, voice.pitch_floor, voice.pitch_ceiling)
+    # The second syllable, level in the source, now falls by several semitones.
+    first, last = _thirds(made, voice, after.split, after.end)
+    assert first - last > 4
+    # The first syllable keeps its recorded pitch.
+    kept = _thirds(made, voice, after.start, after.split)
+    recorded = _thirds(original, voice, before.start, before.split)
+    assert kept == pytest.approx(recorded, abs=1.0)

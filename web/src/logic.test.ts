@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { levelAt, patternLevels, placeAt, syllableWeights } from "./contour";
 import type { Tone, Word } from "./deck";
-import { acceptedAnswers, isCorrect, wordForAnswer } from "./grading";
+import { acceptedAnswers, isCorrect, spokenForm, wordForAnswer } from "./grading";
 import { markSyllable } from "./pinyin";
 import { createScheduler, emptyProgress, migrateIds, parseProgress, record } from "./progress";
 import { countScope, pickNext } from "./queue";
@@ -54,6 +54,13 @@ describe("grading", () => {
     expect(wordForAnswer([1, 4], family)?.hanzi).toBe("依次");
     expect(wordForAnswer([3, 3], family)?.hanzi).toBe("以此");
     expect(wordForAnswer([4, 4], family)).toBeUndefined();
+  });
+
+  test("an answer of 3-3 falls back to a word said 2-3", () => {
+    const rising = word("yi2ci3", "疑此", [2, 3]);
+    expect(wordForAnswer([3, 3], [yici, rising])?.hanzi).toBe("疑此");
+    expect(spokenForm([3, 3])).toEqual([2, 3]);
+    expect(spokenForm([3, 4])).toEqual([3, 4]);
   });
 });
 
@@ -176,10 +183,10 @@ describe("progress", async () => {
 });
 
 describe("contours", () => {
-  test("textbook shapes, with a half-third before another syllable", () => {
+  test("a final third tone is a low dip, and a half-third before another syllable", () => {
     expect(patternLevels([2, 3])).toEqual([
       [3, 5],
-      [2, 1, 4],
+      [2, 1, 2],
     ]);
     expect(patternLevels([3, 4])).toEqual([
       [2, 1, 1],

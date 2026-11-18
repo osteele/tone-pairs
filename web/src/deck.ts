@@ -19,6 +19,11 @@ export interface Word {
   exercises: string[];
   /** Voice key → audio path relative to the site root. */
   audio: Record<string, string>;
+  /**
+   * For a recording with no word of its own, made by re-pitching another word's recording to
+   * this pattern: that word's pinyin and hanzi. Such a word has no hanzi or gloss.
+   */
+  madeFrom?: string;
 }
 
 export interface Family {

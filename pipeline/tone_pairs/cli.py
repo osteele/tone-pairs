@@ -12,9 +12,10 @@ from pathlib import Path
 
 from wordfreq import get_frequency_dict
 
-from . import cedict, timing, tts
+from . import cedict, resynthesis, timing, tts
 from .families import (
     CONTRAST_CHAR_ZIPF,
+    RARE_CHAR_ZIPF,
     Family,
     Word,
     build_families,
@@ -55,6 +56,7 @@ def word_json(word: Word, family: Family, audio: Path) -> dict[str, object]:
         "family": family.key,
         "exercises": family.exercises,
         "audio": {v.key: tts.url(word, v, audio) for v in tts.VOICES},
+        **({"madeFrom": f"{word.source.pinyin} {word.source.hanzi}"} if word.source else {}),
     }
 
 
@@ -94,10 +96,11 @@ def main() -> None:
     by_key = candidates(entries, frequencies)
     chars = characters(entries, frequencies)
     contrast_chars = characters(entries, frequencies, min_zipf=CONTRAST_CHAR_ZIPF)
+    rare_chars = characters(entries, frequencies, min_zipf=RARE_CHAR_ZIPF)
     extras = read_extra_words(HOMEWORK / "extra-words.tsv")
 
     items = [(ex.id, item) for ex in exercises for item in ex.items]
-    families = build_families(items, by_key, extras, chars, contrast_chars)
+    families = build_families(items, by_key, extras, chars, contrast_chars, rare_chars)
     report(families)
 
     recorded = [w for f in families for w in (*f.words, *f.contrasts)]
@@ -105,6 +108,17 @@ def main() -> None:
     if not args.no_audio:
         created = tts.synthesize(recorded, audio)
         print(f"synthesized {created} recordings")
+
+    plans = resynthesis.plan(families)
+    if not args.no_audio:
+        made = resynthesis.render_all(plans, audio)
+        print(f"re-pitched {made} recordings for {len(plans)} patterns no word has")
+    complete = [p for p in plans if resynthesis.complete(p, audio)]
+    for item in complete:
+        item.family.contrasts.append(item.word)
+    if len(complete) < len(plans):
+        print(f"WARNING {len(plans) - len(complete)} re-pitched patterns lack a voice; left out")
+    recorded = [w for f in families for w in (*f.words, *f.contrasts)]
 
     timings: dict[str, timing.Timing] = {}
     for word in recorded:
@@ -119,5 +133,13 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     data = manifest([(ex.id, ex.title) for ex in exercises], families, timings, audio)
     out.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    # Recordings of words no longer in any family, or re-pitched in only some voices, would
+    # otherwise be deployed for nothing.
+    used = {path.split("?")[0] for path in timings}
+    stale = [p for p in audio.glob("*.mp3") if f"audio/{p.name}" not in used]
+    for path in stale:
+        path.unlink()
+    if stale:
+        print(f"removed {len(stale)} recordings no word uses")
     drill = sum(len(f.words) for f in families)
     print(f"wrote {out.relative_to(ROOT)}: {drill} drill words, {len(recorded)} recorded words")

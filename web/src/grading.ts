@@ -21,10 +21,22 @@ export function isCorrect(answer: Pattern, word: Word, family: Word[]): boolean 
   return acceptedAnswers(word, family).some((p) => samePattern(p, answer));
 }
 
-/** The family member the answer describes, if any: the word the listener thought they heard. */
+/**
+ * How a pattern of written tones is said: two third tones are said 2-3. Other sandhi (一, 不)
+ * depends on the character, which an answer does not name.
+ */
+export function spokenForm(pattern: Pattern): Pattern {
+  return samePattern(pattern, [3, 3]) ? [2, 3] : pattern;
+}
+
+/**
+ * The family member the answer describes, if any: the word the listener thought they heard.
+ * An answer of 3-3 names a word written that way, or else any word said 2-3.
+ */
 export function wordForAnswer(answer: Pattern, family: Word[]): Word | undefined {
   return (
     family.find((w) => samePattern(w.spoken, answer)) ??
-    family.find((w) => samePattern(w.tones, answer))
+    family.find((w) => samePattern(w.tones, answer)) ??
+    family.find((w) => samePattern(w.spoken, spokenForm(answer)))
   );
 }

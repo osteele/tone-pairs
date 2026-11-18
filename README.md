@@ -3,7 +3,7 @@
 A listening drill for the tones of two-syllable Mandarin words, built from the
 pronunciation exercises in the *HSK Standard Course 1* workbook. It runs as a
 web app saved to the iPhone home screen. The app itself loads in seconds; the
-recordings (about 60 MB) then download in the background, with progress shown
+recordings (about 110 MB) then download in the background, with progress shown
 on the home screen, and once they have the drill works offline.
 
 Live at <https://tone-pairs.pages.dev>. Source at <https://github.com/osteele/tone-pairs>.
@@ -23,8 +23,9 @@ characters, each with a single dictionary reading, labelled "not a word" in
 the feedback. The added patterns change one syllable's tone at a time.
 
 After you answer, a staff shows the idealized contour of the word played on
-the five-level pitch scale (55, 35, 214, 51; a non-final third tone as 21; a
-neutral tone as a short pitch set by the tone before it). A dot follows the
+the five-level pitch scale (55, 35, 51, and a third tone as a low dip: 212 at
+the end of a word, 21 before another syllable; a neutral tone as a short pitch
+set by the tone before it). A dotted line joins the two syllables. A dot follows the
 contour as the recording plays. When the answer is wrong, the feedback names
 the word played and the word your answer describes, each in its color with
 its own play button, and draws your answer's contour on a second staff below.
@@ -36,8 +37,15 @@ too.
 The tones you name usually belong to no word in the drill set, so each family
 also has a recording of every other tone pattern, used only for comparisons:
 the most common real word with that pattern, or else a pseudo-word. A pattern
-with no recording (a neutral tone with no real word, or a syllable such as
-*mīng* that no character has) still gets its contour drawn.
+with a third tone may use rarer characters, since a spoken third tone has a
+creak that the next method cannot produce. Any pattern still missing is made by
+re-pitching another recording of the family in the same voice: the syllable
+whose tone differs is given the idealized contour, and the other keeps its
+recorded pitch. The feedback labels such a recording "re-pitched from" its
+source. A pattern ending in a neutral tone gets a recording only from a real
+word, but its contour is still drawn.
+
+An answer of 3-3 is drawn and played as it is said, 2-3.
 
 An answer counts as right if it matches the tones as spoken. The dictionary
 tones are also accepted when they differ only by tone sandhi (你好, written
