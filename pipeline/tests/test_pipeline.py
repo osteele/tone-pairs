@@ -1,8 +1,7 @@
 import math
 
-import parselmouth
 import pytest
-from tone_pairs import resynthesis, timing, tts
+from tone_pairs import recordings, resynthesis, sound, timing, tts
 from tone_pairs.cedict import parse_line
 from tone_pairs.families import (
     Character,
@@ -100,7 +99,8 @@ def test_words_with_the_same_reading_have_distinct_ids_and_recordings():
     voice = tts.VOICES[0]
     assert tts.filename(yici, voice) != tts.filename(yici2, voice)
     # Recordings keep the names they were synthesized under.
-    assert tts.filename(_word("时间", (2, 1)), voice) == "shi2jian1-89b4aa-xiaoxiao.mp3"
+    assert tts.filename(_word("时间", (2, 1)), voice) == "shi2jian1-89b4aa-xiaoxiao.m4a"
+    assert tts.speech_filename(_word("时间", (2, 1)), voice) == "shi2jian1-89b4aa-xiaoxiao.mp3"
 
 
 def test_recording_version_changes_when_the_recording_does(tmp_path):
@@ -233,11 +233,9 @@ def test_level_at_matches_the_app_contour_model():
     assert resynthesis.syllable_levels(3, None, last=False) == (2, 1, 1)
 
 
-def _thirds(path, voice, start, end):
+def _thirds(heard, voice, start, end):
     """Mean pitch, in semitones above 100 Hz, of the first and last thirds of a span."""
-    pitch = parselmouth.Sound(str(path)).to_pitch_ac(
-        pitch_floor=voice.pitch_floor, pitch_ceiling=voice.pitch_ceiling
-    )
+    pitch = heard.to_pitch_ac(pitch_floor=voice.pitch_floor, pitch_ceiling=voice.pitch_ceiling)
     voiced = [
         12 * math.log2(f / 100)
         for t, f in zip(pitch.xs(), pitch.selected_array["frequency"], strict=True)
@@ -247,16 +245,11 @@ def _thirds(path, voice, start, end):
     return sum(voiced[:n]) / n, sum(voiced[-n:]) / n
 
 
-def test_resynthesis_reshapes_only_the_changed_syllable(tmp_path, two_syllables):
-    source = _word("时间", (2, 1))
+def test_repitch_reshapes_only_the_changed_syllable(tmp_path, two_syllables):
     voice = tts.VOICES[0]
-    original = tmp_path / tts.filename(source, voice)
-    two_syllables(original)
-    family = Family(syllables=("shi", "jian"), words=[source])
-    plan = next(p for p in resynthesis.plan([family]) if p.pattern == (2, 4))
-    assert resynthesis.render(plan, voice, tmp_path, span=(10.0, 21.0))
-
-    made = tmp_path / tts.filename(plan.word, voice)
+    original = sound.decode(two_syllables(tmp_path / "clip.mp3"))
+    made = resynthesis.repitch(original, (2, 1), (2, 4), voice, span=(10.0, 21.0))
+    assert made is not None
     before = timing.measure(original, voice.pitch_floor, voice.pitch_ceiling)
     after = timing.measure(made, voice.pitch_floor, voice.pitch_ceiling)
     # The second syllable, level in the source, now falls by several semitones.
@@ -270,9 +263,11 @@ def test_resynthesis_reshapes_only_the_changed_syllable(tmp_path, two_syllables)
 
 def test_track_measures_each_syllable_on_the_five_level_scale(tmp_path, two_syllables):
     voice = tts.VOICES[0]
-    path = two_syllables(tmp_path / "clip.mp3")
-    bounds = timing.measure(path, voice.pitch_floor, voice.pitch_ceiling)
-    first, second = timing.track(path, voice.pitch_floor, voice.pitch_ceiling, bounds, (10.0, 21.0))
+    heard = sound.decode(two_syllables(tmp_path / "clip.mp3"))
+    bounds = timing.measure(heard, voice.pitch_floor, voice.pitch_ceiling)
+    first, second = timing.track(
+        heard, voice.pitch_floor, voice.pitch_ceiling, bounds, (10.0, 21.0)
+    )
     assert len(first) == len(second) == 16
     voiced = [tenths / 10 for tenths in second if tenths is not None]
     # The second syllable holds 300 Hz: high and level.
@@ -280,5 +275,51 @@ def test_track_measures_each_syllable_on_the_five_level_scale(tmp_path, two_syll
     assert min(voiced) > 3.5
     assert max(voiced) - min(voiced) < 1.0
     # A wider assumed range puts the same pitch lower on the scale.
-    _, wider = timing.track(path, voice.pitch_floor, voice.pitch_ceiling, bounds, (10.0, 30.0))
+    _, wider = timing.track(heard, voice.pitch_floor, voice.pitch_ceiling, bounds, (10.0, 30.0))
     assert max(v for v in wider if v is not None) / 10 < max(voiced)
+
+
+def test_trim_keeps_a_few_hundredths_before_the_first_sound(tmp_path, two_syllables):
+    recorded = sound.decode(two_syllables(tmp_path / "clip.mp3"))
+    assert sound.onset(recorded) > 0.1
+    trimmed = sound.trim(recorded)
+    assert sound.onset(trimmed) < 0.04
+    # The cut falls exactly KEEP_SECONDS before the first sound, to within a sample.
+    cut = recorded.duration - trimmed.duration
+    assert cut == pytest.approx(sound.onset(recorded) - sound.KEEP_SECONDS, abs=2 / sound.RATE)
+    # Trimming again changes nothing.
+    assert sound.trim(trimmed).duration == pytest.approx(trimmed.duration, abs=0.003)
+
+
+def test_encoding_preserves_the_timeline(tmp_path, two_syllables):
+    trimmed = sound.trim(sound.decode(two_syllables(tmp_path / "clip.mp3")))
+    sound.encode(trimmed, tmp_path / "out.m4a")
+    heard = sound.decode(tmp_path / "out.m4a")
+    # The MP4 edit list removes the AAC encoder's padding, so the first sound and the length
+    # are where they were before encoding.
+    assert heard.duration == pytest.approx(trimmed.duration, abs=0.002)
+    assert sound.onset(heard) == pytest.approx(sound.onset(trimmed), abs=0.006)
+
+
+def test_build_makes_trimmed_and_repitched_recordings_and_reuses_measurements(
+    tmp_path, two_syllables
+):
+    source = _word("时间", (2, 1))
+    family = Family(syllables=("shi", "jian"), words=[source])
+    made = next(p for p in resynthesis.plan([family]) if p.pattern == (2, 4)).word
+    voice = tts.VOICES[0]
+    speech, audio, cache = tmp_path / "speech", tmp_path / "audio", tmp_path / "measured.json"
+    speech.mkdir()
+    two_syllables(speech / tts.speech_filename(source, voice))
+
+    first = recordings.build([source, made], speech, audio, cache, progress=lambda _: None)
+    assert set(first) == {f"audio/{tts.filename(w, voice)}" for w in (source, made)}
+    for entry in first.values():
+        assert len(entry["t"]) == 3 and len(entry["p"]) == 2
+    served = sound.decode(audio / tts.filename(source, voice))
+    assert sound.onset(served) < 0.04
+
+    # A second run makes nothing new and reads its measurements from the cache.
+    mtimes = {p.name: p.stat().st_mtime_ns for p in audio.iterdir()}
+    assert recordings.build([source, made], speech, audio, cache, progress=lambda _: None) == first
+    assert {p.name: p.stat().st_mtime_ns for p in audio.iterdir()} == mtimes

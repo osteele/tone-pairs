@@ -35,6 +35,12 @@ _BACKOFF_SECONDS = 5
 
 
 def filename(word: Word, voice: Voice) -> str:
+    """The served recording: trimmed, and re-encoded as AAC (sound.py)."""
+    return f"{word.id}-{voice.key}.m4a"
+
+
+def speech_filename(word: Word, voice: Voice) -> str:
+    """The recording as the synthesizer returned it, kept as the source of the served one."""
     return f"{word.id}-{voice.key}.mp3"
 
 
@@ -66,13 +72,13 @@ async def _synthesize_all(jobs: list[tuple[str, Voice, Path]]) -> None:
 
 
 def synthesize(words: list[Word], directory: Path) -> int:
-    """Write any missing recordings; return how many were created."""
+    """Synthesize any missing speech into ``directory``; return how many were created."""
     directory.mkdir(parents=True, exist_ok=True)
     jobs = [
-        (word.hanzi, voice, directory / filename(word, voice))
+        (word.hanzi, voice, directory / speech_filename(word, voice))
         for word in words
         for voice in VOICES
-        if not (directory / filename(word, voice)).exists()
+        if not (directory / speech_filename(word, voice)).exists()
     ]
     asyncio.run(_synthesize_all(jobs))
     return len(jobs)

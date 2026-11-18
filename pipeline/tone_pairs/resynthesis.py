@@ -10,16 +10,13 @@ across the voice's measured range.
 """
 
 import math
-import random
-import subprocess
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from pathlib import Path
 
 import parselmouth
 from parselmouth.praat import call
 
-from . import timing, tts
+from . import timing
 from .families import Family, Pattern, Word
 from .pinyin import NEUTRAL
 from .tts import Voice
@@ -33,9 +30,6 @@ _TIME_STEP = 0.01
 _CONTOUR_POINTS = 20
 # Percentiles of a voice's pitch taken as levels 1 and 5 of the five-level scale.
 _RANGE_PERCENTILES = (5, 95)
-_RANGE_SAMPLE = 60
-# The encoding of the synthesized recordings, so both kinds play alike.
-_MP3_ARGS = ("-ar", "24000", "-ac", "1", "-b:a", "48k")
 
 
 def syllable_levels(tone: int, previous: int | None, last: bool) -> tuple[float, ...]:
@@ -113,19 +107,19 @@ def plan(families: Iterable[Family]) -> list[Plan]:
     return plans
 
 
-def voice_range(paths: Sequence[Path], voice: Voice) -> tuple[float, float]:
-    """Semitones above 100 Hz of the low and high ends of a voice's pitch."""
-    sample = random.Random(voice.key).sample(list(paths), min(_RANGE_SAMPLE, len(paths)))
+def voice_range(sounds: Iterable[parselmouth.Sound], voice: Voice) -> tuple[float, float]:
+    """Semitones above 100 Hz of the low and high ends of a voice's pitch, over a sample of
+    its recordings."""
     semitones: list[float] = []
-    for path in sample:
-        pitch = parselmouth.Sound(str(path)).to_pitch_ac(
+    for sound in sounds:
+        pitch = sound.to_pitch_ac(
             time_step=_TIME_STEP, pitch_floor=voice.pitch_floor, pitch_ceiling=voice.pitch_ceiling
         )
         semitones.extend(
             12 * math.log2(f / 100) for f in pitch.selected_array["frequency"] if f > 0
         )
     if not semitones:
-        raise ValueError(f"{voice.key}: no voiced frames in {len(sample)} recordings")
+        raise ValueError(f"{voice.key}: no voiced frames in the sample")
     semitones.sort()
     low, high = (semitones[len(semitones) * p // 100] for p in _RANGE_PERCENTILES)
     return low, high
@@ -136,14 +130,17 @@ def _hertz(level: float, span: tuple[float, float]) -> float:
     return 100 * 2 ** ((low + (level - 1) / 4 * (high - low)) / 12)
 
 
-def render(item: Plan, voice: Voice, directory: Path, span: tuple[float, float]) -> bool:
-    """Write the plan's recording in one voice; False if it exists or cannot be made."""
-    source = directory / tts.filename(item.source, voice)
-    out = directory / tts.filename(item.word, voice)
-    if out.exists() or not source.exists():
-        return False
-    sound = parselmouth.Sound(str(source))
-    bounds = timing.measure(source, voice.pitch_floor, voice.pitch_ceiling)
+def repitch(
+    sound: parselmouth.Sound,
+    spoken: Pattern,
+    pattern: Pattern,
+    voice: Voice,
+    span: tuple[float, float],
+) -> parselmouth.Sound | None:
+    """``sound``, a recording said with tones ``spoken``, re-pitched to ``pattern``: each
+    syllable whose tone differs takes the idealized contour, spread across ``span``. None
+    when a syllable to change has too little voicing to carry a contour."""
+    bounds = timing.measure(sound, voice.pitch_floor, voice.pitch_ceiling)
     manipulation = call(
         sound, "To Manipulation", _TIME_STEP, voice.pitch_floor, voice.pitch_ceiling
     )
@@ -157,50 +154,15 @@ def render(item: Plan, voice: Voice, directory: Path, span: tuple[float, float])
         [t for t in times if bounds.split < t <= bounds.end],
     )
     for i, voiced in enumerate(syllables):
-        if item.source.spoken[i] == item.pattern[i]:
+        if spoken[i] == pattern[i]:
             continue
         if len(voiced) < 2:
-            return False
+            return None
         start, end = voiced[0], voiced[-1]
         call(tier, "Remove points between", start, end)
-        levels = syllable_levels(item.pattern[i], item.pattern[i - 1] if i else None, i == 1)
+        levels = syllable_levels(pattern[i], pattern[i - 1] if i else None, i == 1)
         for k in range(_CONTOUR_POINTS + 1):
             f = k / _CONTOUR_POINTS
             call(tier, "Add point", start + f * (end - start), _hertz(level_at(levels, f), span))
     call([tier, manipulation], "Replace pitch tier")
-    resynthesized = call(manipulation, "Get resynthesis (overlap-add)")
-    wav = out.with_suffix(".wav")
-    partial = out.with_suffix(".partial")
-    resynthesized.save(str(wav), "WAV")
-    try:
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-y",
-                "-loglevel",
-                "error",
-                "-i",
-                str(wav),
-                *_MP3_ARGS,
-                "-f",
-                "mp3",
-                str(partial),
-            ],
-            check=True,
-        )
-    finally:
-        wav.unlink()
-    partial.rename(out)
-    return True
-
-
-def render_all(plans: Sequence[Plan], directory: Path) -> int:
-    """Write every plan's recordings in every voice; return how many were created."""
-    created = 0
-    for voice in tts.VOICES:
-        if not any(not (directory / tts.filename(p.word, voice)).exists() for p in plans):
-            continue
-        drill = sorted(p for p in directory.glob(f"*-{voice.key}.mp3") if "-from-" not in p.name)
-        span = voice_range(drill, voice)
-        created += sum(render(p, voice, directory, span) for p in plans)
-    return created
+    return call(manipulation, "Get resynthesis (overlap-add)")

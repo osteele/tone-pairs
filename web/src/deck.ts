@@ -102,7 +102,7 @@ export async function loadDeck(): Promise<Deck> {
 }
 
 export function audioPath(word: Word, voice: string): string {
-  return `audio/${word.id}-${voice}.mp3`;
+  return `audio/${word.id}-${voice}.m4a`;
 }
 
 /** The word's recording in this voice, if there is one. */

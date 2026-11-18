@@ -8,7 +8,6 @@ listener can see what the recording itself does.
 
 import math
 from dataclasses import dataclass
-from pathlib import Path
 
 import parselmouth
 
@@ -26,13 +25,12 @@ class Timing:
     end: float
 
 
-def measure(path: Path, pitch_floor: float, pitch_ceiling: float) -> Timing:
+def measure(sound: parselmouth.Sound, pitch_floor: float, pitch_ceiling: float) -> Timing:
     """Voiced span of a two-syllable clip, split at the widest voicing gap near its middle.
 
     Without a gap (a voiced initial such as m, n, l, r), the split is the intensity minimum
     in the middle of the span.
     """
-    sound = parselmouth.Sound(str(path))
     pitch = sound.to_pitch_ac(
         time_step=_STEP,
         pitch_floor=pitch_floor,
@@ -43,7 +41,7 @@ def measure(path: Path, pitch_floor: float, pitch_ceiling: float) -> Timing:
     voiced = pitch.selected_array["frequency"] > 0
     indices = [i for i, v in enumerate(voiced) if v]
     if not indices:
-        raise ValueError(f"{path}: no voiced frames")
+        raise ValueError("no voiced frames")
     start, end = float(times[indices[0]]), float(times[indices[-1]])
     low, high = start + 0.3 * (end - start), start + 0.7 * (end - start)
 
@@ -68,7 +66,7 @@ def measure(path: Path, pitch_floor: float, pitch_ceiling: float) -> Timing:
 
 
 def track(
-    path: Path,
+    sound: parselmouth.Sound,
     pitch_floor: float,
     pitch_ceiling: float,
     bounds: Timing,
@@ -80,7 +78,7 @@ def track(
     ``span`` gives the voice's low and high pitch, in semitones above 100 Hz, as levels 1 and 5
     (resynthesis.voice_range). Unvoiced points are None.
     """
-    pitch = parselmouth.Sound(str(path)).to_pitch_ac(
+    pitch = sound.to_pitch_ac(
         time_step=_STEP,
         pitch_floor=pitch_floor,
         pitch_ceiling=pitch_ceiling,

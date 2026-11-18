@@ -34,16 +34,24 @@ TONE_PAIRS_TRANSCRIPTS=/path/to/transcripts
 
 - `web/public/data/words.json`: the lessons, families, and words. It depends
   only on the transcripts, CC-CEDICT, and wordfreq, so it is committed.
-- `web/public/audio/*.mp3`: the recordings, named `<word id>-<voice>.mp3`.
-  Missing ones are synthesized, and re-pitched where no word has a pattern.
-- `web/public/data/recordings.json`: what was measured in each recording, its
-  content digest, timing, and pitch.
+- `.cache/speech/*.mp3`: speech as the synthesizer returned it, one file per
+  word and voice. Missing speech is synthesized.
+- `web/public/audio/*.m4a`: the served recordings, named
+  `<word id>-<voice>.m4a`. Each is made once from the speech: decoded, trimmed
+  of its leading silence (up to the synthesizer's quiet background noise, which
+  soft consonants rise out of, so none is cut), re-pitched where no word has a
+  pattern, and
+  encoded as AAC in MP4. MP4 records the encoder's padding, so playback starts at
+  the first sample and the measured times match what is heard; MP3 does not.
+- `web/public/data/recordings.json`: what was measured in each served
+  recording, its content digest, timing, and pitch. Measurements are cached in
+  `.cache/measured.json`, so a run decodes only new recordings.
 
-The recordings and `recordings.json` are not in the repository: they are kept
-in the working directory, and deployed from there. A fresh checkout can
-regenerate them with `just data`, but synthesized speech varies over time, so a
-fresh synthesis will not match the deployed recordings exactly. The pipeline
-also removes recordings that no word uses.
+The speech, the recordings, and `recordings.json` are not in the repository:
+they are kept in the working directory, and deployed from there. A fresh
+checkout can regenerate them with `just data`, but synthesized speech varies
+over time, so a fresh synthesis will not match the deployed recordings exactly.
+The pipeline also removes served recordings that no word uses.
 
 CC-CEDICT is downloaded to `.cache/` on first use.
 
