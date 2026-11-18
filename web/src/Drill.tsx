@@ -17,7 +17,7 @@ import { markSyllable, samePattern } from "./pinyin";
 import type { Progress, Scheduler } from "./progress";
 import { record } from "./progress";
 import type { Mode, Prompt } from "./session";
-import { clipFor, nextPrompt } from "./session";
+import { advancesAfterRight, clipFor, nextPrompt } from "./session";
 import type { GraphLine } from "./ToneGraph";
 import { ToneGraph } from "./ToneGraph";
 import { usePlayback } from "./usePlayback";
@@ -120,7 +120,11 @@ export function Drill({
         new Date(),
       ),
     );
-    if (correct && progress.settings.autoAdvance) {
+    if (
+      correct &&
+      progress.settings.autoAdvance &&
+      advancesAfterRight(mode, progress.cards[prompt.word.id])
+    ) {
       timer.current = window.setTimeout(advance, AUTO_ADVANCE_MS);
     }
   };

@@ -5,6 +5,7 @@ import { acceptedAnswers, isCorrect, wordForAnswer } from "./grading";
 import { markSyllable } from "./pinyin";
 import { createScheduler, emptyProgress, migrateIds, parseProgress, record } from "./progress";
 import { countScope, pickNext } from "./queue";
+import { advancesAfterRight } from "./session";
 
 function word(
   id: string,
@@ -119,6 +120,15 @@ describe("progress", async () => {
     const wait = p.cards.a1!.dueAt.getTime() - now.getTime();
     expect(wait).toBeLessThanOrEqual(10 * 60_000);
     expect(Object.keys(p.introduced)).toEqual(["a1"]);
+  });
+
+  test("a right answer moves on by itself only in practice or for a learned word", () => {
+    const learning = record(emptyProgress(), scheduler, { ...entry, correct: false }, now).cards.a1;
+    const learned = record(emptyProgress(), scheduler, { ...entry, correct: true }, now).cards.a1;
+    expect(advancesAfterRight("scheduled", undefined)).toBe(false);
+    expect(advancesAfterRight("scheduled", learning)).toBe(false);
+    expect(advancesAfterRight("scheduled", learned)).toBe(true);
+    expect(advancesAfterRight("extra", undefined)).toBe(true);
   });
 
   test("a right answer schedules the word days ahead", () => {

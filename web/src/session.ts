@@ -1,7 +1,7 @@
 import type { Clip } from "./audio";
 import type { Deck, Word } from "./deck";
 import { wordsInScope } from "./deck";
-import type { Progress } from "./progress";
+import type { Card, Progress } from "./progress";
 import { introducedOn, localDate } from "./progress";
 import type { Pick } from "./queue";
 import { pickNext } from "./queue";
@@ -63,4 +63,13 @@ export function clipFor(deck: Deck, word: Word, voice: string): Clip {
   const path = word.audio[voice]!;
   const timing = deck.timing[path];
   return { path, stopAt: timing ? timing[2] + TAIL_SECONDS : undefined };
+}
+
+/**
+ * Whether a right answer moves on by itself. Extra practice and reviews of learned words do;
+ * a word still being learned (new, or in its learning steps) stays up for review, as a wrong
+ * answer does. `card` is the word's state before this answer.
+ */
+export function advancesAfterRight(mode: Mode, card: Card | undefined): boolean {
+  return mode === "extra" || card?.scheduleStatus === "review";
 }
