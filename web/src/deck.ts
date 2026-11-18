@@ -1,3 +1,4 @@
+import { samePattern } from "./pinyin";
 /**
  * The word list written by the Python pipeline (web/public/data/words.json), with what was
  * measured in each recording (web/public/data/recordings.json).
@@ -129,4 +130,11 @@ export function recorded(deck: Deck, word: Word): Word[] {
 /** The words of `recorded` that have a recording in this voice. */
 export function recordedIn(deck: Deck, word: Word, voice: string): Word[] {
   return recorded(deck, word).filter((w) => recordingOf(deck, w, voice) !== undefined);
+}
+
+/** The family's word for a tone pattern: the drill word or comparison recording said that
+ * way, a real word before a made-up one. */
+export function wordFor(words: Word[], pattern: Tone[]): Word | undefined {
+  const said = words.filter((w) => samePattern(w.spoken, pattern));
+  return said.find((w) => w.real) ?? said[0];
 }

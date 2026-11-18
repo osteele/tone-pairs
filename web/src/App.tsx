@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { play } from "./audio";
+import { Browse } from "./Browse";
 import { Drill } from "./Drill";
 import type { Deck } from "./deck";
 import { loadDeck } from "./deck";
@@ -22,6 +23,8 @@ export function App() {
   const [scheduler, setScheduler] = useState<Scheduler | null>(null);
   const [progress, setProgress] = useState<Progress>(loadProgress);
   const [session, setSession] = useState<Session | null>(null);
+  // The lesson being browsed, if any.
+  const [browsing, setBrowsing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const recordings = useOfflineRecordings(deck, progress.settings.scope, progress.cards);
 
@@ -46,13 +49,19 @@ export function App() {
   if (error) return <p className="p-6 text-red-700">Could not load: {error}</p>;
   if (!deck || !scheduler) return <p className="p-6 text-stone-500">Loading…</p>;
 
-  // Called from the Start button's click handler, so the first clip plays inside a user gesture.
-  const start = (mode: Mode) => {
-    const first = nextPrompt(deck, progress, mode, undefined, new Date());
+  // Called from a tap's click handler, so the first clip plays inside a user gesture.
+  const start = (mode: Mode, scope = progress.settings.scope) => {
+    const scoped = { ...progress, settings: { ...progress.settings, scope } };
+    setProgress((p) => ({ ...p, settings: { ...p.settings, scope } }));
+    const first = nextPrompt(deck, scoped, mode, undefined, new Date());
     const clip = first && clipFor(deck, first.word, first.voice);
     if (clip) void play(clip);
     setSession((previous) => ({ key: (previous?.key ?? 0) + 1, mode, first }));
   };
+
+  if (browsing !== null) {
+    return <Browse deck={deck} scope={browsing} onBack={() => setBrowsing(null)} />;
+  }
 
   if (session) {
     return (
@@ -75,6 +84,10 @@ export function App() {
       progress={progress}
       setProgress={setProgress}
       onStart={start}
+      onBrowse={(scope) => {
+        setProgress((p) => ({ ...p, settings: { ...p.settings, scope } }));
+        setBrowsing(scope);
+      }}
       recordings={recordings}
     />
   );

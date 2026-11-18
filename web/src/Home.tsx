@@ -6,28 +6,42 @@ import { ALL, wordsInScope } from "./deck";
 import { Modal } from "./Modal";
 import type { SyncStatus } from "./offline";
 import { describeRecordings } from "./offline";
-import type { Progress, Settings } from "./progress";
+import type { HomeMode, Progress, Settings } from "./progress";
 import { emptyProgress, localDate } from "./progress";
 import { countScope } from "./queue";
 import type { Mode } from "./session";
 import { newAllowed } from "./session";
 
+const MODES: { id: HomeMode; label: string; hint: string }[] = [
+  { id: "learn", label: "Learn", hint: "Tap a lesson to review what's due and learn new words." },
+  {
+    id: "practice",
+    label: "Practice",
+    hint: "Tap a lesson to drill its words at random, without changing the schedule.",
+  },
+  {
+    id: "browse",
+    label: "Browse",
+    hint: "Tap a lesson to hear every tone pattern of its syllables.",
+  },
+];
+
 interface Props {
   deck: Deck;
   progress: Progress;
   setProgress: (update: (p: Progress) => Progress) => void;
-  onStart: (mode: Mode) => void;
+  onStart: (mode: Mode, scope: string) => void;
+  onBrowse: (scope: string) => void;
   /** Progress saving recordings for offline use; null where that is unsupported. */
   recordings: SyncStatus | null;
 }
 
-export function Home({ deck, progress, setProgress, onStart, recordings }: Props) {
+export function Home({ deck, progress, setProgress, onStart, onBrowse, recordings }: Props) {
   const [panel, setPanel] = useState<"settings" | "about" | null>(null);
   const now = new Date();
   const allowed = newAllowed(progress, now);
   const scopes = [{ id: ALL, title: "All lessons" }, ...deck.exercises];
-  const current = countScope(wordsInScope(deck, progress.settings.scope), progress.cards, now);
-  const available = current.due + Math.min(current.unseen, allowed);
+  const mode = progress.settings.homeMode;
 
   const today = localDate(now);
   const todays = progress.reviews.filter((r) => localDate(new Date(r.at)) === today);
@@ -61,6 +75,26 @@ export function Home({ deck, progress, setProgress, onStart, recordings }: Props
       </header>
 
       <section className="flex flex-col gap-2">
+        <div className="grid grid-cols-3 rounded-xl bg-stone-200 p-1" role="tablist">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              role="tab"
+              aria-selected={mode === m.id}
+              onClick={() => update({ homeMode: m.id })}
+              className={`rounded-lg py-2 text-sm font-medium ${
+                mode === m.id ? "bg-white shadow-sm" : "text-stone-600"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <p className="px-1 text-sm text-stone-500">{MODES.find((m) => m.id === mode)?.hint}</p>
+      </section>
+
+      <section className="flex flex-col gap-2">
         {scopes.map((scope) => {
           const words = wordsInScope(deck, scope.id);
           // A lesson whose pronunciation exercises have no two-syllable items is listed
@@ -77,19 +111,33 @@ export function Home({ deck, progress, setProgress, onStart, recordings }: Props
             );
           }
           const counts = countScope(words, progress.cards, now);
-          const selected = progress.settings.scope === scope.id;
+          const learnable = counts.due + Math.min(counts.unseen, allowed);
+          const families = new Set(words.map((w) => w.family)).size;
+          const idle = mode === "learn" && learnable === 0;
+          const last = progress.settings.scope === scope.id;
           return (
             <button
               key={scope.id}
               type="button"
-              onClick={() => update({ scope: scope.id })}
-              className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left ${
-                selected ? "border-teal-600 bg-teal-50" : "border-stone-200 bg-white"
+              disabled={idle}
+              onClick={() =>
+                mode === "browse"
+                  ? onBrowse(scope.id)
+                  : onStart(mode === "learn" ? "scheduled" : "extra", scope.id)
+              }
+              className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left active:bg-stone-100 disabled:opacity-50 ${
+                last ? "border-teal-600 bg-teal-50" : "border-stone-200 bg-white"
               }`}
             >
               <span className="font-medium">{scope.title}</span>
               <span className="text-sm text-stone-500">
-                {counts.due} due · {counts.unseen} new · {counts.learned} seen
+                {mode === "learn"
+                  ? idle
+                    ? "nothing due"
+                    : `${counts.due} due · ${Math.min(counts.unseen, allowed)} new`
+                  : mode === "practice"
+                    ? `${counts.learned} seen · ${words.length} words`
+                    : `${families} ${families === 1 ? "family" : "families"}`}
               </span>
             </button>
           );
@@ -97,23 +145,6 @@ export function Home({ deck, progress, setProgress, onStart, recordings }: Props
       </section>
 
       <section className="flex flex-col gap-3">
-        <button
-          type="button"
-          disabled={available === 0}
-          onClick={() => onStart("scheduled")}
-          className="rounded-xl bg-teal-600 py-4 text-lg font-semibold text-white active:bg-teal-700 disabled:bg-stone-300"
-        >
-          {available === 0
-            ? "Nothing due"
-            : `Review ${current.due} · learn ${Math.min(current.unseen, allowed)}`}
-        </button>
-        <button
-          type="button"
-          onClick={() => onStart("extra")}
-          className="rounded-xl border border-stone-300 bg-white py-3 font-medium active:bg-stone-100"
-        >
-          Extra practice (not scheduled)
-        </button>
         <p className="text-center text-sm text-stone-500">
           Today: {todays.length} answers
           {todays.length > 0 && `, ${Math.round((100 * right) / todays.length)}% right`}

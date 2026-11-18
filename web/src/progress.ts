@@ -24,10 +24,15 @@ export interface Review {
   scheduled: boolean;
 }
 
+/** What tapping a lesson on the start screen does. */
+export type HomeMode = "learn" | "practice" | "browse";
+
 export interface Settings {
   newPerDay: number;
   autoAdvance: boolean;
+  /** The lesson last chosen. */
   scope: string;
+  homeMode: HomeMode;
 }
 
 export interface Progress {
@@ -45,7 +50,12 @@ const KEY = "tone-pairs/v1";
 const VERSION = 2;
 const MAX_REVIEWS = 5000;
 
-export const DEFAULT_SETTINGS: Settings = { newPerDay: 20, autoAdvance: true, scope: ALL };
+export const DEFAULT_SETTINGS: Settings = {
+  newPerDay: 20,
+  autoAdvance: true,
+  scope: ALL,
+  homeMode: "learn",
+};
 
 export function emptyProgress(): Progress {
   return {

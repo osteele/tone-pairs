@@ -12,7 +12,7 @@ Live at <https://tone-pairs.pages.dev>.
 2. To use it like an app, tap Share → *Add to Home Screen*, then open it from
    the home screen. Progress is kept separately for the Safari tab and the
    home-screen app, so pick one and stay with it.
-3. Choose a lesson, or *All lessons*, and tap *Review · learn* to start.
+3. With *Learn* selected at the top, tap a lesson, or *All lessons*, to start.
 
 The app itself loads in seconds. Its recordings (about 110 MB) then download in
 the background, the current lesson's first, while you use it; a line on the
@@ -22,7 +22,19 @@ plays over the network.
 
 ## Using the drill
 
-You hear a word and see its pinyin without tone marks. Tap a tone for each
+The switch at the top of the start screen sets what tapping a lesson does:
+
+- *Learn* reviews the words due and introduces new ones, on a schedule.
+- *Practice* drills the lesson's words at random, without changing the
+  schedule, and moves on by itself after a right answer.
+- *Browse* lists the lesson's syllables (`shi jian`, `pi jiu`, …). Pick one to
+  see its tone patterns, a row for each tone of the first syllable and a column
+  for each of the second, and tap any to hear it and see its pitch. *Real words
+  only* hides the made-up ones.
+
+You hear a word and see its pinyin without tone marks. The play button spins
+while the word loads and is ringed while it plays; tap it to hear the word
+again, or tap *Show answer* if you don't know. Tap a tone for each
 syllable, in either order; the answer counts once both are chosen. Each word is
 spoken by one of four synthesized voices (two women, two men), chosen at random
 each time. The words are the workbook's, together with other words, and
@@ -56,9 +68,8 @@ notes both.
 Words come back on a spaced-repetition schedule: one you miss returns within
 minutes, one you get right days later. New words are introduced a few at a
 time, 20 a day by default (Settings, the ⚙ button). While a word is new, a
-right answer stays on screen for review, as a wrong one does. *Extra practice*
-drills random words without changing the schedule, and moves on by itself after
-a right answer. Progress is stored on the device; Settings can erase it.
+right answer stays on screen for review, as a wrong one does; *Show answer*
+counts as a miss. Progress is stored on the device; Settings can erase it.
 
 If a recording sounds wrong, tap *Bad audio*: that recording is not played
 again, and Settings lists the flagged recordings so they can be fixed. *About*

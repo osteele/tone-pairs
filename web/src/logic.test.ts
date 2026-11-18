@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { levelAt, patternLevels, placeAt, syllableWeights } from "./contour";
 import type { Tone, Word } from "./deck";
+import { wordFor } from "./deck";
 import { acceptedAnswers, isCorrect, spokenForm, wordForAnswer } from "./grading";
 import { markSyllable } from "./pinyin";
 import { createScheduler, emptyProgress, migrateIds, parseProgress, record } from "./progress";
@@ -223,5 +224,26 @@ describe("contours", () => {
     expect(placeAt(0.35, timing).fraction).toBeCloseTo(0.5);
     expect(placeAt(0.65, timing).fraction).toBeCloseTo(0.5);
     expect(placeAt(2, timing)).toEqual({ syllable: 1, fraction: 1 });
+  });
+});
+
+describe("browse", () => {
+  test("a pattern shows the word said that way, a real word before a made-up one", () => {
+    const pseudo = { ...word("p", "依此", [1, 4]), real: false };
+    const real = word("r", "依次", [1, 4]);
+    const sandhi = word("s", "以此", [3, 3], [2, 3]);
+    expect(wordFor([pseudo, real], [1, 4])?.hanzi).toBe("依次");
+    expect(wordFor([pseudo], [1, 4])?.hanzi).toBe("依此");
+    // A word written 3-3 is said 2-3, so it is listed there.
+    expect(wordFor([sandhi], [2, 3])?.hanzi).toBe("以此");
+    expect(wordFor([sandhi], [3, 3])).toBeUndefined();
+  });
+
+  test("progress saved before the start screen had modes opens in Learn", () => {
+    const old = {
+      ...emptyProgress(),
+      settings: { newPerDay: 10, autoAdvance: true, scope: "all" },
+    };
+    expect(parseProgress(JSON.stringify(old)).settings.homeMode).toBe("learn");
   });
 });
