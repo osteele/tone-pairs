@@ -6,6 +6,7 @@ import {
   FaPen,
   FaPlay,
   FaRepeat,
+  FaSpinner,
   FaStop,
   FaVolumeHigh,
   FaXmark,
@@ -14,6 +15,7 @@ import { play, playSequence, prefetch, stop } from "./audio";
 import type { Deck, Pattern, Tone, Word } from "./deck";
 import { recordedIn, recordingOf, siblings } from "./deck";
 import { isCorrect, spokenForm, wordForAnswer } from "./grading";
+import { whileLoading } from "./loading";
 import { markSyllable, samePattern } from "./pinyin";
 import type { Progress, Scheduler } from "./progress";
 import { record } from "./progress";
@@ -37,8 +39,11 @@ interface Props {
 }
 
 interface Result {
+  /** The tones answered; empty when the listener asked to see the answer instead. */
   answer: Tone[];
   correct: boolean;
+  /** The listener tapped Show answer rather than answering. */
+  revealed: boolean;
 }
 
 const FIRST_TONES: Tone[] = [1, 2, 3, 4];
@@ -61,6 +66,9 @@ export function Drill({
   const [choices, setChoices] = useState<(Tone | null)[]>([null, null]);
   const [result, setResult] = useState<Result | null>(null);
   const [blocked, setBlocked] = useState(false);
+  // From a tap on Play until the recording starts: loading and decoding take a moment on iOS.
+  const [starting, setStarting] = useState(false);
+  const playback = usePlayback();
   const [tally, setTally] = useState({ answered: 0, right: 0 });
   const timer = useRef<number | undefined>(undefined);
   // The latest progress, for the auto-advance timer, which outlives the render that set it.
@@ -73,7 +81,8 @@ export function Drill({
   const say = useCallback(
     async (word: Word, voice: string) => {
       const clip = clipFor(deck, word, voice);
-      if (clip) setBlocked((await play(clip)) === "blocked");
+      if (!clip) return;
+      setBlocked((await whileLoading(setStarting, () => play(clip))) === "blocked");
     },
     [deck],
   );
@@ -113,12 +122,16 @@ export function Drill({
     if (next.every((c) => c !== null)) submit(next as Tone[]);
   };
 
-  const submit = (pattern: Tone[]) => {
+  const submit = (pattern: Tone[], revealed = false) => {
     if (!prompt) return;
     const family = siblings(deck, prompt.word);
-    const correct = isCorrect(pattern, prompt.word, family);
-    setResult({ answer: pattern, correct });
-    if (!correct) {
+    const correct = !revealed && isCorrect(pattern, prompt.word, family);
+    setResult({ answer: pattern, correct, revealed });
+    if (revealed) {
+      // Inside the tap, so iOS allows it to play.
+      const clip = clipFor(deck, prompt.word, prompt.voice);
+      if (clip) void play(clip);
+    } else if (!correct) {
       // Inside the tap that answered, so iOS allows the sequence to start.
       const answered = wordForAnswer(pattern, recordedIn(deck, prompt.word, prompt.voice));
       const clips = answered && [
@@ -151,6 +164,11 @@ export function Drill({
     ) {
       timer.current = window.setTimeout(advance, AUTO_ADVANCE_MS);
     }
+  };
+
+  /** Show the answer without answering; scheduled as a wrong answer. */
+  const reveal = () => {
+    if (prompt && !result) submit([], true);
   };
 
   const hear = (word: Word) => {
@@ -246,6 +264,8 @@ export function Drill({
   }
 
   const { word } = prompt;
+  const promptClip = clipFor(deck, word, prompt.voice);
+  const playing = promptClip !== undefined && playback?.clip?.path === promptClip.path;
 
   return shell(
     <>
@@ -265,15 +285,30 @@ export function Drill({
           </p>
           <button
             type="button"
-            aria-label="Play again"
+            aria-label={playing ? "Playing; tap to play again" : "Play again"}
             onClick={() => hear(word)}
-            className={`flex size-16 items-center justify-center rounded-full text-white active:scale-95 ${
-              blocked ? "animate-pulse bg-amber-500" : "bg-teal-600"
+            className={`flex size-16 items-center justify-center rounded-full text-white transition active:scale-95 ${
+              blocked
+                ? "animate-pulse bg-amber-500"
+                : playing
+                  ? "bg-teal-700 ring-4 ring-teal-300"
+                  : "bg-teal-600"
             }`}
           >
-            <FaVolumeHigh size={28} />
+            {starting ? (
+              <FaSpinner size={26} className="animate-spin" />
+            ) : (
+              <FaVolumeHigh size={28} />
+            )}
           </button>
           {blocked && <p className="text-sm text-amber-700">Tap to play</p>}
+          <button
+            type="button"
+            onClick={reveal}
+            className="rounded-full px-3 py-1 text-sm text-stone-500 active:bg-stone-200"
+          >
+            Show answer
+          </button>
         </section>
       )}
 
@@ -362,9 +397,10 @@ function Feedback({
 }) {
   const { word, voice } = prompt;
   // The word whose tones the listener named, if one was recorded.
-  const answered = result.correct
-    ? undefined
-    : wordForAnswer(result.answer, recordedIn(deck, word, voice));
+  const answered =
+    result.correct || result.revealed
+      ? undefined
+      : wordForAnswer(result.answer, recordedIn(deck, word, voice));
   const answeredPinyin = word.syllables.map((s, i) => markSyllable(s, result.answer[i]!)).join("");
   // Real drill words of the family besides the two above, to compare against the word played.
   const others = siblings(deck, word).filter(
@@ -396,7 +432,7 @@ function Feedback({
   // Drawn on a second staff, beneath the word played.
   const compared = picked
     ? graphLine("other", picked.spoken, picked.pinyin, picked)
-    : result.correct
+    : result.correct || result.revealed
       ? undefined
       : graphLine("answered", spokenForm(result.answer), `your answer ${answeredPinyin}`, answered);
   const [copied, setCopied] = useState<string | null>(null);
@@ -417,16 +453,20 @@ function Feedback({
     <section className="flex flex-1 flex-col gap-3">
       <div
         className={`flex flex-col gap-2 rounded-xl px-4 py-3 ${
-          result.correct ? "bg-emerald-50" : "bg-rose-50"
+          result.correct ? "bg-emerald-50" : result.revealed ? "bg-stone-100" : "bg-rose-50"
         }`}
       >
         <p
           className={`flex items-center gap-2 font-semibold ${
-            result.correct ? "text-emerald-800" : "text-rose-800"
+            result.correct
+              ? "text-emerald-800"
+              : result.revealed
+                ? "text-stone-700"
+                : "text-rose-800"
           }`}
         >
-          {result.correct ? <FaCheck /> : <FaXmark />}
-          {result.correct ? "Right" : "Not quite"}
+          {result.correct ? <FaCheck /> : result.revealed ? null : <FaXmark />}
+          {result.correct ? "Right" : result.revealed ? "Answer" : "Not quite"}
         </p>
         <WordRow
           label="Played"
@@ -442,7 +482,7 @@ function Feedback({
           }
           onPlay={playedClip ? tapped(() => void play(playedClip)) : undefined}
         />
-        {!result.correct && (
+        {!result.correct && !result.revealed && (
           <WordRow
             label="Your answer"
             who={picked ? "other" : "answered"}
@@ -487,7 +527,7 @@ function Feedback({
         )}
       </div>
 
-      {(!result.correct || picked) && (
+      {((!result.correct && !result.revealed) || picked) && (
         <div className="grid grid-cols-2 gap-2 text-sm">
           <button
             type="button"
