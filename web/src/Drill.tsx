@@ -268,12 +268,14 @@ export function Drill({
   const { word } = prompt;
   const promptClip = clipFor(deck, word, prompt.voice);
   const playing = promptClip !== undefined && playback?.clip?.path === promptClip.path;
+  // From the tap until sound comes out: loading, then the player's own start-up delay.
+  const loading = starting || (playing && playback?.waiting === true);
 
   return shell(
     <>
       {/* After an answer the feedback names the word and has its own play button. */}
       {!result && (
-        <section className="flex flex-col items-center gap-3">
+        <section className="flex flex-1 flex-col items-center justify-center gap-8">
           <p className="flex gap-3 text-4xl font-medium tracking-wide">
             {word.syllables.map((s, i) => {
               const tone = choices[i];
@@ -289,18 +291,18 @@ export function Drill({
             type="button"
             aria-label={playing ? "Playing; tap to play again" : "Play again"}
             onClick={() => hear(word)}
-            className={`flex size-16 items-center justify-center rounded-full text-white transition active:scale-95 ${
+            className={`flex size-28 items-center justify-center rounded-full text-white shadow-md transition active:scale-95 ${
               blocked
                 ? "animate-pulse bg-amber-500"
-                : playing
-                  ? "bg-teal-700 ring-4 ring-teal-300"
+                : playing && !loading
+                  ? "bg-teal-700 ring-8 ring-teal-300"
                   : "bg-teal-600"
             }`}
           >
-            {starting ? (
-              <FaSpinner size={26} className="animate-spin" />
+            {loading ? (
+              <FaSpinner size={44} className="animate-spin" />
             ) : (
-              <FaVolumeHigh size={28} />
+              <FaVolumeHigh size={48} />
             )}
           </button>
           {blocked && <p className="text-sm text-amber-700">Tap to play</p>}
@@ -318,7 +320,7 @@ export function Drill({
           onNext={advance}
         />
       ) : (
-        <section className="mt-auto flex flex-col gap-3">
+        <section className="flex flex-col gap-3">
           <button
             type="button"
             onClick={reveal}
@@ -492,11 +494,13 @@ function Feedback({
             tones={result.answer}
             word={answered}
             onCopy={copy}
+            // Puts the answer back on the second staff after another word replaced it, and plays
+            // it if it was recorded.
             onPlay={
-              answeredClip
+              answeredClip || picked
                 ? tapped(() => {
                     setPicked(null);
-                    void play(answeredClip);
+                    if (answeredClip) void play(answeredClip);
                   })
                 : undefined
             }
@@ -737,9 +741,18 @@ function WordRow({
       <div className="min-w-0 flex-1">
         <p className="text-xs text-stone-500">{label}</p>
         <p className="flex items-baseline gap-2 truncate">
-          <Pinyin syllables={syllables} tones={tones} />
+          <button type="button" disabled={!onPlay} onClick={onPlay} className="active:opacity-60">
+            <Pinyin syllables={syllables} tones={tones} />
+          </button>
           {word && <Hanzi hanzi={word.hanzi} onCopy={onCopy} />}
-          <span className="truncate text-sm text-stone-500">{meaning}</span>
+          <button
+            type="button"
+            disabled={!onPlay}
+            onClick={onPlay}
+            className="min-w-0 truncate text-left text-sm text-stone-500 active:opacity-60"
+          >
+            {meaning}
+          </button>
         </p>
         {note && <p className="text-xs text-stone-500">{note}</p>}
       </div>

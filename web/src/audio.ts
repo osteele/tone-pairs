@@ -6,6 +6,8 @@
  * HTMLAudioElement rather than Web Audio, so playback ignores the iPhone's silent switch.
  */
 
+import { anchor } from "./clock";
+
 export type PlayResult = "played" | "blocked";
 
 export interface Clip {
@@ -18,6 +20,8 @@ export interface Playback {
   /** The clip playing, or null when stopped. */
   clip: Clip | null;
   time: number;
+  /** A clip is loaded and playing, but no sound has come out yet. */
+  waiting: boolean;
   /** Index of the clip within the current sequence. */
   index: number;
   looping: boolean;
@@ -39,19 +43,18 @@ let looping = false;
 let pending: number | undefined;
 let frame: number | undefined;
 let generation = 0;
-// When the playing clip started, by performance.now(). The playhead is placed by time elapsed
-// since then rather than by the player's currentTime, which Safari updates only every few
-// hundred milliseconds, so a dot following it moves in jumps. Clips play from the start of
-// the file, so elapsed time is the position in the clip.
-let startedAt = 0;
+// When the playing clip started, by performance.now(), or null until its sound starts (see
+// clock.ts). Clips play from the start of the file, so elapsed time is the position in the clip.
+let startedAt: number | null = null;
 const listeners = new Set<Listener>();
 
-const elapsed = () => (performance.now() - startedAt) / 1000;
+const elapsed = () => (startedAt === null ? 0 : (performance.now() - startedAt) / 1000);
 
 function emit(): void {
   const state: Playback = {
     clip: frame === undefined ? null : (sequence[index] ?? null),
     time: frame === undefined ? 0 : elapsed(),
+    waiting: frame !== undefined && startedAt === null,
     index,
     looping,
   };
@@ -78,6 +81,7 @@ export function stop(): void {
 }
 
 function tick(): void {
+  startedAt = anchor(startedAt, performance.now(), player.currentTime);
   const clip = sequence[index];
   if (clip?.stopAt !== undefined && elapsed() >= clip.stopAt) {
     finishClip();
@@ -111,6 +115,7 @@ async function start(run: number): Promise<PlayResult> {
   // loaded clip instead (currentTime = 0) made every other replay in Safari break up into
   // snippets separated by silence.
   player.src = url(clip.path);
+  startedAt = null;
   try {
     await player.play();
   } catch (error) {
@@ -123,7 +128,6 @@ async function start(run: number): Promise<PlayResult> {
     throw error;
   }
   if (run !== generation) return "played";
-  startedAt = performance.now();
   frame = requestAnimationFrame(tick);
   return "played";
 }
