@@ -57,14 +57,15 @@ CC-CEDICT is downloaded to `.cache/` on first use.
 
 ## Adding a lesson
 
-1. Transcribe the workbook's two-syllable pronunciation items into
-   `hsk1-NN.txt` in the transcripts directory, one question per line:
-   `9. fang men / fangjian`.
-   Copy the pinyin as printed, with or without tone marks. A read-aloud list
-   gets one word per line. Where the book leaves one syllable bare for you to
-   mark (the 不 in `bu shì`), copy the item with no tone marks. A lesson with
-   no two-syllable items still gets a file, holding only comments that say
-   why; the app lists it as having nothing to drill.
+1. Transcribe the workbook's two-syllable tone-marking items, the ones that
+   ask you to add the tone marks you hear (语音 Part II, 给下列词语标注声调),
+   into `hsk1-NN.txt` in the transcripts directory, one question per line:
+   `9. fang men / fangjian`. Leave out exercises whose tones are printed: Part
+   I, which asks which of two words is said, and read-aloud lists. Where the
+   book leaves one syllable bare for you to mark (the 不 in `bu shì`), copy the
+   item with no tone marks. A lesson with no two-syllable tone-marking items
+   still gets a file, holding only comments that say why; the app lists it as
+   having nothing to drill.
 2. If an item is not in CC-CEDICT (`mén hòu`), CC-CEDICT gives it more than
    one reading (不是), or lists it only as a proper noun (春节), add it to
    `homework/extra-words.tsv`.

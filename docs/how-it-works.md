@@ -5,8 +5,11 @@ are graded. For using the drill, see the [README](../README.md).
 
 ## Families
 
-Every toneless pinyin in the workbook's pronunciation exercises (`shi jian`,
-`pi jiu`, …) becomes a *family*: words that share its syllables but differ in
+The words come from the workbook's tone-marking exercises, which print a
+two-syllable word without its tones and ask for them by ear. Exercises that
+print the tones (choosing which of two words is said, reading aloud) are not
+used. Every toneless pinyin in them (`shi jian`, `pi jiu`, …) becomes a
+*family*: words that share its syllables but differ in
 tone. Drilling the whole family means the answer cannot be recalled from the
 workbook, since the printed word is only one of several with those syllables.
 
