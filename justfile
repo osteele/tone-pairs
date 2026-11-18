@@ -1,7 +1,10 @@
+# .env sets TONE_PAIRS_TRANSCRIPTS, the directory of workbook transcripts.
+set dotenv-load
+
 default:
     @just --list
 
-# Rebuild words.json and synthesize any missing recordings from homework/*.txt
+# Rebuild words.json and the recordings from the workbook transcripts
 data:
     uv run tone-pairs
 

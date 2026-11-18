@@ -19,6 +19,17 @@ Cloudflare.
 
 ## Data
 
+The pipeline reads the workbook transcripts, one file per lesson
+(`hsk1-01.txt`, …). They are excerpts of a copyrighted workbook, so they are not
+in the repository: put them in a directory of your own and name it in `.env`,
+which `just` loads and git ignores:
+
+```sh
+TONE_PAIRS_TRANSCRIPTS=/path/to/transcripts
+```
+
+`homework/extra-words.tsv`, words the dictionary lacks, is in the repository.
+
 `just data` reads the transcripts and writes:
 
 - `web/public/data/words.json`: the lessons, families, and words. It depends
@@ -39,7 +50,8 @@ CC-CEDICT is downloaded to `.cache/` on first use.
 ## Adding a lesson
 
 1. Transcribe the workbook's two-syllable pronunciation items into
-   `homework/hsk1-NN.txt`, one question per line: `9. fang men / fangjian`.
+   `hsk1-NN.txt` in the transcripts directory, one question per line:
+   `9. fang men / fangjian`.
    Copy the pinyin as printed, with or without tone marks. A read-aloud list
    gets one word per line. Where the book leaves one syllable bare for you to
    mark (the 不 in `bu shì`), copy the item with no tone marks. A lesson with

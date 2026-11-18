@@ -2,7 +2,8 @@
 
     uv run tone-pairs [--no-audio]
 
-Reads homework/*.txt and homework/extra-words.tsv. Writes web/public/data/words.json, which
+Reads the workbook transcripts (hsk*.txt, in $TONE_PAIRS_TRANSCRIPTS) and
+homework/extra-words.tsv. Writes web/public/data/words.json, which
 depends only on those and the dictionary, and so is committed; web/public/audio/*.mp3; and
 web/public/data/recordings.json, what was measured in each recording, which like the
 recordings themselves is kept out of the repository.
@@ -10,6 +11,7 @@ recordings themselves is kept out of the repository.
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from wordfreq import get_frequency_dict
@@ -28,6 +30,9 @@ from .homework import read_exercise, read_extra_words
 
 ROOT = Path(__file__).resolve().parents[2]
 HOMEWORK = ROOT / "homework"
+# The workbook transcripts (hsk*.txt) are excerpts of a copyrighted book, kept outside the
+# repository; TONE_PAIRS_TRANSCRIPTS names their directory (set in .env, which just loads).
+TRANSCRIPTS_VAR = "TONE_PAIRS_TRANSCRIPTS"
 CACHE = ROOT / ".cache"
 PUBLIC = ROOT / "web" / "public"
 
@@ -87,7 +92,14 @@ def main() -> None:
 
     entries = cedict.load(cedict.ensure_downloaded(CACHE / "cedict.txt.gz"))
     valid = frozenset(s for e in entries for s in e.syllables)
-    exercises = [read_exercise(p, valid) for p in sorted(HOMEWORK.glob("*.txt"))]
+    transcripts = Path(os.environ.get(TRANSCRIPTS_VAR, HOMEWORK))
+    paths = sorted(transcripts.glob("hsk*.txt"))
+    if not paths:
+        raise SystemExit(
+            f"no transcripts (hsk*.txt) in {transcripts}; set {TRANSCRIPTS_VAR} in .env "
+            "to the directory that holds them"
+        )
+    exercises = [read_exercise(p, valid) for p in paths]
     frequencies = get_frequency_dict("zh")
     by_key = candidates(entries, frequencies)
     chars = characters(entries, frequencies)
