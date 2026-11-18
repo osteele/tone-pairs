@@ -43,9 +43,9 @@ const SECTIONS: Record<HelpTopic, { title: string; body: ReactNode }> = {
         </p>
         <p>
           The play button replays the word. It spins while the word loads, and a ring around it
-          fills as it plays. The voice's name, under it, plays the word in the next voice; the
-          answer then uses that voice. If you don't know, tap <b>Show answer</b>; it counts as a
-          miss.
+          fills as it plays. <b>½ speed</b>, under it, plays the word slowly at the same pitch, and
+          the voice's name plays it in the next voice; the answer then uses that voice. Tap either
+          syllable to hear it alone. If you don't know, tap <b>Show answer</b>; it counts as a miss.
         </p>
       </>
     ),

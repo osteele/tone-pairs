@@ -12,13 +12,18 @@ export type PlayResult = "played" | "blocked";
 
 export interface Clip {
   path: string;
-  /** Seconds at which to stop: the end of speech plus a short tail. */
+  /** Seconds into the recording at which to start; the start of the file when absent. */
+  startAt?: number;
+  /** Seconds into the recording at which to stop: the end of speech plus a short tail. */
   stopAt?: number;
+  /** Playback speed, 1 when absent. Pitch is kept: a slowed word keeps its tones. */
+  rate?: number;
 }
 
 export interface Playback {
   /** The clip playing, or null when stopped. */
   clip: Clip | null;
+  /** Seconds into the recording, whatever the clip's start and speed. */
   time: number;
   /** A clip is loaded and playing, but no sound has come out yet. */
   waiting: boolean;
@@ -44,16 +49,20 @@ let pending: number | undefined;
 let frame: number | undefined;
 let generation = 0;
 // When the playing clip started, by performance.now(), or null until its sound starts (see
-// clock.ts). Clips play from the start of the file, so elapsed time is the position in the clip.
+// clock.ts). The clock measures time heard, so a slowed clip's position in the recording is
+// elapsed time times its speed, after its start.
 let startedAt: number | null = null;
 const listeners = new Set<Listener>();
 
 const elapsed = () => (startedAt === null ? 0 : (performance.now() - startedAt) / 1000);
+/** Where the playing clip is in its recording, in seconds. */
+const position = (clip: Clip) => (clip.startAt ?? 0) + elapsed() * (clip.rate ?? 1);
 
 function emit(): void {
+  const clip = frame === undefined ? null : (sequence[index] ?? null);
   const state: Playback = {
-    clip: frame === undefined ? null : (sequence[index] ?? null),
-    time: frame === undefined ? 0 : elapsed(),
+    clip,
+    time: clip ? position(clip) : 0,
     waiting: frame !== undefined && startedAt === null,
     index,
     looping,
@@ -81,9 +90,12 @@ export function stop(): void {
 }
 
 function tick(): void {
-  startedAt = anchor(startedAt, performance.now(), player.currentTime);
   const clip = sequence[index];
-  if (clip?.stopAt !== undefined && elapsed() >= clip.stopAt) {
+  if (!clip) return;
+  // The player's position, as time heard since the clip's start.
+  const heard = (player.currentTime - (clip.startAt ?? 0)) / (clip.rate ?? 1);
+  startedAt = anchor(startedAt, performance.now(), heard);
+  if (clip.stopAt !== undefined && position(clip) >= clip.stopAt) {
     finishClip();
     return;
   }
@@ -114,7 +126,12 @@ async function start(run: number): Promise<PlayResult> {
   // The source is assigned on every play, even a replay of the same clip. Rewinding the
   // loaded clip instead (currentTime = 0) made every other replay in Safari break up into
   // snippets separated by silence.
-  player.src = url(clip.path);
+  // A media fragment starts the clip partway in. Assigning a source resets the speed to
+  // the default, so the speed is set after it.
+  player.src = clip.startAt ? `${url(clip.path)}#t=${clip.startAt.toFixed(3)}` : url(clip.path);
+  player.preservesPitch = true;
+  player.defaultPlaybackRate = clip.rate ?? 1;
+  player.playbackRate = clip.rate ?? 1;
   startedAt = null;
   try {
     await player.play();

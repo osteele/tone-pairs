@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FaArrowRight,
   FaArrowsRotate,
+  FaBackwardFast,
   FaCheck,
   FaFlag,
   FaPen,
@@ -22,7 +23,14 @@ import { markSyllable, samePattern } from "./pinyin";
 import type { Progress, Scheduler } from "./progress";
 import { record } from "./progress";
 import type { Mode, Prompt } from "./session";
-import { advancesAfterRight, clipFor, familyPaths, nextPrompt } from "./session";
+import {
+  advancesAfterRight,
+  clipFor,
+  familyPaths,
+  nextPrompt,
+  SLOW_RATE,
+  syllableClip,
+} from "./session";
 import type { GraphLine } from "./ToneGraph";
 import { ToneGraph } from "./ToneGraph";
 import type { Role } from "./tones";
@@ -81,8 +89,11 @@ export function Drill({
   useEffect(() => cancelAdvance, [cancelAdvance]);
 
   const say = useCallback(
-    async (word: Word, voice: string) => {
-      const clip = clipFor(deck, word, voice);
+    async (word: Word, voice: string, options: { slow?: boolean; syllable?: number } = {}) => {
+      const whole = clipFor(deck, word, voice);
+      const part =
+        options.syllable === undefined ? whole : syllableClip(deck, word, voice, options.syllable);
+      const clip = part && (options.slow ? { ...part, rate: SLOW_RATE } : part);
       if (!clip) return;
       setBlocked((await whileLoading(setStarting, () => play(clip))) === "blocked");
     },
@@ -184,9 +195,9 @@ export function Drill({
     void say(prompt.word, next.key);
   };
 
-  const hear = (word: Word) => {
+  const hear = (word: Word, options: { slow?: boolean; syllable?: number } = {}) => {
     cancelAdvance();
-    if (prompt) void say(word, prompt.voice);
+    if (prompt) void say(word, prompt.voice, options);
   };
 
   const flag = () => {
@@ -210,6 +221,8 @@ export function Drill({
         const tone = Number(e.key) as Tone;
         if (choices[0] === null && tone !== 5) pick(0, tone);
         else if (choices[1] === null) pick(1, tone);
+      } else if (e.key === "s" && !result) {
+        hear(prompt.word, { slow: true });
       } else if (e.key === "v" && !result) {
         nextVoice();
       } else if (e.key === "Backspace" && !result) {
@@ -296,14 +309,22 @@ export function Drill({
       {/* After an answer the feedback names the word and has its own play button. */}
       {!result && (
         <section className="flex flex-1 flex-col items-center justify-center gap-8">
+          {/* Each syllable plays alone when tapped. */}
           <p className="flex gap-3 text-4xl font-medium tracking-wide">
             {word.syllables.map((s, i) => {
               const tone = choices[i];
               return (
-                // biome-ignore lint/suspicious/noArrayIndexKey: a word's syllables never reorder.
-                <span key={i} style={tone == null ? undefined : { color: TONE_COLORS[tone] }}>
+                <button
+                  // biome-ignore lint/suspicious/noArrayIndexKey: a word's syllables never reorder.
+                  key={i}
+                  type="button"
+                  aria-label={`Play the syllable ${s} alone`}
+                  onClick={() => hear(word, { syllable: i })}
+                  className="rounded-lg px-1 underline decoration-stone-300 decoration-dotted underline-offset-8 active:bg-stone-200"
+                  style={tone == null ? undefined : { color: TONE_COLORS[tone] }}
+                >
                   {(tone == null ? s : markSyllable(s, tone)).replaceAll("u:", "ü")}
-                </span>
+                </button>
               );
             })}
           </p>
@@ -335,14 +356,25 @@ export function Drill({
               )}
             </button>
           </div>
-          <button
-            type="button"
-            onClick={nextVoice}
-            aria-label={`Voice: ${voiceLabel}. Tap for the next voice`}
-            className="-mt-4 flex items-center gap-1.5 rounded-full px-3 py-1 text-sm text-stone-500 active:bg-stone-200"
-          >
-            {voiceLabel} <FaArrowsRotate size={11} />
-          </button>
+          <div className="-mt-4 flex items-center gap-2 text-sm text-stone-500">
+            <button
+              type="button"
+              onClick={() => hear(word, { slow: true })}
+              aria-label="Play at half speed"
+              className="flex items-center gap-1.5 rounded-full px-3 py-1 active:bg-stone-200"
+            >
+              <FaBackwardFast size={11} /> ½ speed
+            </button>
+            <span aria-hidden>·</span>
+            <button
+              type="button"
+              onClick={nextVoice}
+              aria-label={`Voice: ${voiceLabel}. Tap for the next voice`}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1 active:bg-stone-200"
+            >
+              {voiceLabel} <FaArrowsRotate size={11} />
+            </button>
+          </div>
           {blocked && <p className="text-sm text-amber-700">Tap to play</p>}
         </section>
       )}

@@ -66,6 +66,33 @@ export function clipFor(deck: Deck, word: Word, voice: string): Clip | undefined
   return { path: recording.url, stopAt: recording.timing[2] + TAIL_SECONDS };
 }
 
+/** The slowed playback speed: slow enough to follow the contour, fast enough to stay a word. */
+export const SLOW_RATE = 0.5;
+/**
+ * A syllable played alone starts this long before the measured division, so a consonant at the
+ * start of the second syllable, which the division may cut into, is heard whole.
+ */
+const SYLLABLE_LEAD_SECONDS = 0.04;
+
+/** One syllable of the word's recording, played alone. */
+export function syllableClip(
+  deck: Deck,
+  word: Word,
+  voice: string,
+  syllable: number,
+): Clip | undefined {
+  const recording = recordingOf(deck, word, voice);
+  if (!recording) return undefined;
+  const [, divide, end] = recording.timing;
+  return syllable === 0
+    ? { path: recording.url, stopAt: divide }
+    : {
+        path: recording.url,
+        startAt: Math.max(0, divide - SYLLABLE_LEAD_SECONDS),
+        stopAt: end + TAIL_SECONDS,
+      };
+}
+
 /** Every recording of the word's family in this voice: whatever the feedback may play. */
 export function familyPaths(deck: Deck, word: Word, voice: string): string[] {
   return recorded(deck, word)

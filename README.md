@@ -38,7 +38,8 @@ hear the word again, or tap *Show answer* if you don't know. Tap a tone for each
 syllable, in either order; the answer counts once both are chosen. Each word is
 spoken by one of four synthesized voices (two women, two men), chosen at random
 each time; tap the voice's name under the play button to hear the word in the
-next voice. The words are the workbook's, together with other words, and
+next voice. *½ speed* plays it slowly at the same pitch, and tapping a
+syllable plays that syllable alone. The words are the workbook's, together with other words, and
 made-up "pseudo-words", that share their syllables but differ in tone, so the
 answer cannot be remembered from the workbook.
 

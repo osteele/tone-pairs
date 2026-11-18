@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { levelAt, patternLevels, placeAt, syllableWeights } from "./contour";
 import type { Tone, Word } from "./deck";
-import { drillWords, wordFor } from "./deck";
+import { audioPath, drillWords, wordFor } from "./deck";
 import { acceptedAnswers, isCorrect, spokenForm, wordForAnswer } from "./grading";
 import { markSyllable } from "./pinyin";
 import { createScheduler, emptyProgress, migrateIds, parseProgress, record } from "./progress";
 import { countScope, pickNext } from "./queue";
-import { advancesAfterRight } from "./session";
+import { advancesAfterRight, clipFor, syllableClip } from "./session";
 
 function word(
   id: string,
@@ -256,5 +256,37 @@ describe("drill words", () => {
     expect(drillWords(deck, "hsk1-07", false).map((w) => w.id)).toEqual(["r", "p"]);
     expect(drillWords(deck, "hsk1-07", true).map((w) => w.id)).toEqual(["r"]);
     expect(emptyProgress().settings.realOnly).toBe(false);
+  });
+});
+
+describe("syllable clips", () => {
+  const real = word("r", "依次", [1, 4]);
+  const deck = {
+    exercises: [],
+    voices: [],
+    families: [],
+    words: [real],
+    recordings: {
+      [audioPath(real, "v")]: {
+        v: "d",
+        t: [0.01, 0.3, 0.62] as [number, number, number],
+        p: [[], []],
+      },
+    },
+  };
+
+  test("the first syllable stops at the division, the second starts just before it", () => {
+    const first = syllableClip(deck, real, "v", 0);
+    const second = syllableClip(deck, real, "v", 1);
+    const whole = clipFor(deck, real, "v");
+    expect(first?.startAt).toBeUndefined();
+    expect(first?.stopAt).toBe(0.3);
+    // Started a little early, so an initial consonant the division cuts into is heard whole.
+    expect(second?.startAt).toBeCloseTo(0.26);
+    expect(second?.stopAt).toBe(whole?.stopAt);
+  });
+
+  test("a word with no recording in the voice has no syllable clips", () => {
+    expect(syllableClip(deck, real, "other", 0)).toBeUndefined();
   });
 });
