@@ -1,6 +1,6 @@
 import { levelAt, patternLevels, placeAt, syllableWeights } from "./contour";
 import type { Pattern, PitchTrack, Timing, Tone } from "./deck";
-import { TONE_COLORS, TONE_DARK, TONE_PALE } from "./tones";
+import { MINE_COLOR, TONE_COLORS, TONE_DARK, TONE_PALE } from "./tones";
 import { usePlayback } from "./usePlayback";
 
 export interface GraphLine {
@@ -12,6 +12,8 @@ export interface GraphLine {
   timing?: Timing;
   /** The recording's measured pitch, drawn over the idealized contour. */
   track?: PitchTrack;
+  /** The listener's pitch from Say it, drawn over both. */
+  mine?: PitchTrack;
 }
 
 const W = 320;
@@ -25,6 +27,8 @@ const SAMPLES = 32;
 const STROKE = 6;
 /** The measured pitch: thin, so the contour it is drawn over shows around it. */
 const TRACK_STROKE = 1.5;
+/** The listener's pitch: a little heavier than the recording's, which it is compared with. */
+const MINE_STROKE = 2;
 /** Light enough that the textbook contour stays the first thing read. */
 const TRACK_OPACITY = 0.6;
 const JOIN_COLOR = "#a8a29e";
@@ -171,6 +175,31 @@ export function ToneGraph({ line }: { line: GraphLine }) {
           })}
         </g>
       )}
+      {/* The listener's pitch, edged in white to stand clear of the lines beneath. */}
+      {line.mine &&
+        parts.flatMap((syllable, i) => {
+          const d = trackPath(line.mine?.[i] ?? [], syllable.span);
+          return [
+            <path
+              key={`mine-edge:${syllable.id}`}
+              d={d}
+              fill="none"
+              stroke="white"
+              strokeWidth={MINE_STROKE + 2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />,
+            <path
+              key={`mine:${syllable.id}`}
+              d={d}
+              fill="none"
+              stroke={MINE_COLOR}
+              strokeWidth={MINE_STROKE}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />,
+          ];
+        })}
       {playing && line.timing && playback && (
         <Playhead parts={parts} timing={line.timing} trail={STROKE + 4} time={playback.time} />
       )}

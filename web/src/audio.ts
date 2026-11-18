@@ -176,8 +176,17 @@ player.addEventListener("ended", () => {
   if (frame !== undefined) finishClip();
 });
 
+const beforePlay = new Set<() => void>();
+
+/** Run `action` whenever something is asked to play, before it starts (voice.ts ends a take). */
+export function onBeforePlay(action: () => void): () => void {
+  beforePlay.add(action);
+  return () => beforePlay.delete(action);
+}
+
 /** Play clips one after another, optionally repeating until stopped. */
 export function playSequence(clips: Clip[], options: { loop?: boolean } = {}): Promise<PlayResult> {
+  for (const action of beforePlay) action();
   generation += 1;
   halt();
   sequence = clips;

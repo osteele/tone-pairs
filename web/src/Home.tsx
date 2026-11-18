@@ -18,7 +18,7 @@ const MODES: { id: HomeMode; label: string; hint: string }[] = [
   {
     id: "practice",
     label: "Practice",
-    hint: "Tap a lesson to drill its words at random, without changing the schedule.",
+    hint: "Tap a lesson to drill its words, the tone patterns you miss most more often, without changing the schedule.",
   },
   {
     id: "browse",

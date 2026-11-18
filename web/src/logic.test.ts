@@ -6,7 +6,14 @@ import { acceptedAnswers, isCorrect, spokenForm, wordForAnswer } from "./grading
 import { markSyllable } from "./pinyin";
 import { createScheduler, emptyProgress, migrateIds, parseProgress, record } from "./progress";
 import { countScope, pickNext } from "./queue";
-import { advancesAfterRight, clipFor, syllableClip } from "./session";
+import {
+  advancesAfterRight,
+  clipFor,
+  patternWeights,
+  syllableClip,
+  UNSEEN_WEIGHT,
+  weightedPick,
+} from "./session";
 
 function word(
   id: string,
@@ -288,5 +295,58 @@ describe("syllable clips", () => {
 
   test("a word with no recording in the voice has no syllable clips", () => {
     expect(syllableClip(deck, real, "other", 0)).toBeUndefined();
+  });
+});
+
+describe("confusion-weighted practice", () => {
+  const rising = word("a", "时间", [2, 1]);
+  const sameRising = word("b", "实质", [2, 1]);
+  const falling = word("c", "事件", [4, 4]);
+  const review = (id: string, correct: boolean) => ({
+    at: "2026-11-19T00:00:00Z",
+    word: id,
+    voice: "v",
+    answer: [],
+    correct,
+    scheduled: false,
+  });
+
+  test("weights a pattern by its smoothed miss rate, across words", () => {
+    const weights = patternWeights(
+      [review("a", false), review("a", false), review("c", true), review("c", true)],
+      [rising, sameRising, falling],
+    );
+    // 2-1: two misses in two answers, (2 + 1) / (2 + 2).
+    expect(weights.get("2-1")).toBeCloseTo(0.75);
+    // 4-4: none missed in two, (0 + 1) / (2 + 2).
+    expect(weights.get("4-4")).toBeCloseTo(0.25);
+    // A pattern never answered is absent, and weighted as unseen.
+    expect(weights.get("3-3")).toBeUndefined();
+    expect(UNSEEN_WEIGHT).toBe(0.5);
+  });
+
+  test("keeps a well-answered pattern in rotation", () => {
+    const many = Array.from({ length: 100 }, () => review("c", true));
+    expect(patternWeights(many, [falling]).get("4-4")).toBeCloseTo(0.1);
+  });
+
+  test("picks in proportion to weight", () => {
+    const weights: Record<string, number> = { x: 3, y: 1 };
+    const pick = (r: number) =>
+      weightedPick(
+        ["x", "y"],
+        (k) => weights[k]!,
+        () => r,
+      );
+    expect(pick(0)).toBe("x");
+    expect(pick(0.74)).toBe("x");
+    expect(pick(0.76)).toBe("y");
+    expect(
+      weightedPick(
+        [],
+        () => 1,
+        () => 0.5,
+      ),
+    ).toBeUndefined();
   });
 });

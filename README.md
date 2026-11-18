@@ -25,8 +25,9 @@ plays over the network.
 The switch at the top of the start screen sets what tapping a lesson does:
 
 - *Learn* reviews the words due and introduces new ones, on a schedule.
-- *Practice* drills the lesson's words at random, without changing the
-  schedule, and moves on by itself after a right answer.
+- *Practice* drills the lesson's words, more often those with the tone
+  patterns you miss most, without changing the schedule, and moves on by
+  itself after a right answer.
 - *Browse* lists the lesson's syllables (`shi jian`, `pi jiu`, …). Pick one to
   see its tone patterns, a row for each tone of the first syllable and a column
   for each of the second, and tap any to hear it and see its pitch. *Include
@@ -52,7 +53,9 @@ The thick line is the textbook shape of its tones; the thin dark line over it
 is the pitch measured in the recording itself, which is often flatter. The thin
 line breaks where there is no pitch to measure, such as the hiss of s, sh, or f.
 A dot follows the line as the recording plays. Tap a staff to hear it again,
-and tap a word's characters to copy them. The ? button on every screen explains
+and tap a word's characters to copy them. *Say it* records you saying the word
+and draws your pitch on the staff, scaled to your own voice, so you can compare
+the two; *Mine* plays your take back. The recording stays on your phone. The ? button on every screen explains
 what it shows.
 
 When the answer is wrong, your answer is drawn on a second staff below. A

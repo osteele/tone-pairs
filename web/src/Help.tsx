@@ -22,9 +22,9 @@ const SECTIONS: Record<HelpTopic, { title: string; body: ReactNode }> = {
       <>
         <p>
           The switch at the top sets what tapping a lesson does. <b>Learn</b> reviews the words due
-          and introduces new ones. <b>Practice</b> drills the lesson's words at random without
-          changing the schedule. <b>Browse</b> lists the lesson's syllables, so you can hear every
-          tone pattern of each.
+          and introduces new ones. <b>Practice</b> drills the lesson's words without changing the
+          schedule, choosing more often the tone patterns you miss most. <b>Browse</b> lists the
+          lesson's syllables, so you can hear every tone pattern of each.
         </p>
         <p>
           ⓘ shows credits and the build; ⚙ holds the settings, including new words per day and a
@@ -65,6 +65,11 @@ const SECTIONS: Record<HelpTopic, { title: string; body: ReactNode }> = {
           the tones; the thin dark line over it is the pitch measured in the recording. The thin
           line breaks where there is no pitch to measure: voiceless consonants such as s, sh, x, f,
           h, and p are made without voice. A dot follows the word as it plays.
+        </p>
+        <p>
+          <b>Say it</b> records you saying the word and draws your pitch on its staff, scaled to
+          your own voice: your range is learned from your takes. <b>Mine</b> plays your take. The
+          recording stays on this device.
         </p>
         <p>
           "Not a word" marks a made-up word that fills out a family; "re-pitched" marks a recording

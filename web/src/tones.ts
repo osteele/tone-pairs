@@ -34,6 +34,9 @@ export const TONE_PALE: Record<Tone, string> = {
   5: "#e7e5e4",
 };
 
+/** The listener's own pitch, from Say it: clear of the tone colors and the role colors. */
+export const MINE_COLOR = "#0d9488";
+
 /**
  * Which word a staff or row shows. These colors stay clear of the tone colors, and of the
  * green and red that mark a right or wrong answer.

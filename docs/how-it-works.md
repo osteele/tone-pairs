@@ -88,3 +88,25 @@ minutes, through learning steps of 1 and 10 minutes, and a right one schedules
 it days ahead. New words are introduced a family at a time, up to the daily
 limit. A right answer moves on by itself only in extra practice or for a word
 past its learning steps.
+
+Practice, which does not change the schedule, chooses words by tone pattern:
+each pattern, as said, is weighted by how often it was missed in the last 400
+answers, smoothed as (misses + 1) / (answers + 2), with a floor of 0.1 so a
+pattern answered well still comes up. The weight belongs to the pattern, not
+the word, so a pattern often misheard is practiced in every word that has it.
+
+## Say it
+
+Say it records the listener with the phone's microphone and finds the pitch
+of each 10 ms of the take with [pitchy](https://github.com/ianprime0509/pitchy).
+The take runs from its first voiced moment to its last, and is divided into
+syllables at its quietest point near where the recording's syllables divide.
+Its pitch is drawn on the same five-level scale as the recordings', with the
+listener's own range as levels 1 and 5: the median 5th and 95th percentile
+pitch of their last 20 takes, kept on the device, and at least eight semitones
+wide, so a word said on one pitch is not stretched across the staff.
+
+On an iPhone, playback is much quieter and slower to start while the
+microphone is open, so a take ends when the voice falls quiet (or after three
+seconds), the microphone is released at once, and anything asked to play ends
+the take first.

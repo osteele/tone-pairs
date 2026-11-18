@@ -1,7 +1,7 @@
 import type { Clip } from "./audio";
 import type { Deck, Word } from "./deck";
 import { drillWords, recorded, recordingOf } from "./deck";
-import type { Card, Progress } from "./progress";
+import type { Card, Progress, Review } from "./progress";
 import { introducedOn, localDate } from "./progress";
 import type { Pick } from "./queue";
 import { pickNext } from "./queue";
@@ -30,6 +30,60 @@ export function chooseVoice(deck: Deck, word: Word, progress: Progress, avoid?: 
   return choices[Math.floor(Math.random() * choices.length)]!;
 }
 
+/** Answers counted when weighting Practice: recent enough to reflect what is hard now. */
+const RECENT_REVIEWS = 400;
+/** The weight of a tone pattern never answered: the smoothed miss rate of no answers. */
+export const UNSEEN_WEIGHT = 0.5;
+/** No pattern drops below this, so one answered well still comes up now and then. */
+const MIN_WEIGHT = 0.1;
+
+const patternKey = (pattern: readonly number[]) => pattern.join("-");
+
+/**
+ * How often to practice each tone pattern, as said: its miss rate over recent answers, smoothed
+ * so a pattern answered once is not weighted by that one answer ((misses + 1) / (answers + 2)).
+ * Keyed by pattern, not word, so a pattern the listener mishears is practiced in every word that
+ * has it, including words they have not yet missed.
+ */
+export function patternWeights(
+  reviews: readonly Review[],
+  words: readonly Word[],
+): Map<string, number> {
+  const byId = new Map(words.map((w) => [w.id, w]));
+  const counts = new Map<string, { answers: number; misses: number }>();
+  for (const review of reviews.slice(-RECENT_REVIEWS)) {
+    const word = byId.get(review.word);
+    if (!word) continue;
+    const key = patternKey(word.spoken);
+    const count = counts.get(key) ?? { answers: 0, misses: 0 };
+    count.answers += 1;
+    // A Show answer is recorded as a miss too: the listener could not tell.
+    if (!review.correct) count.misses += 1;
+    counts.set(key, count);
+  }
+  return new Map(
+    [...counts].map(([key, { answers, misses }]) => [
+      key,
+      Math.max(MIN_WEIGHT, (misses + 1) / (answers + 2)),
+    ]),
+  );
+}
+
+/** One item of `pool`, chosen with probability proportional to its weight. */
+export function weightedPick<T>(
+  pool: readonly T[],
+  weight: (item: T) => number,
+  random: () => number,
+): T | undefined {
+  const weights = pool.map(weight);
+  let left = random() * weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < pool.length; i++) {
+    left -= weights[i]!;
+    if (left < 0) return pool[i];
+  }
+  return pool[pool.length - 1];
+}
+
 export function nextPrompt(
   deck: Deck,
   progress: Progress,
@@ -41,7 +95,12 @@ export function nextPrompt(
   if (mode === "extra") {
     const others = scope.filter((w) => w.id !== lastId);
     const pool = others.length > 0 ? others : scope;
-    const word = pool[Math.floor(Math.random() * pool.length)];
+    const weights = patternWeights(progress.reviews, deck.words);
+    const word = weightedPick(
+      pool,
+      (w) => weights.get(patternKey(w.spoken)) ?? UNSEEN_WEIGHT,
+      Math.random,
+    );
     return word ? { word, voice: chooseVoice(deck, word, progress), kind: "extra" } : null;
   }
   const pick = pickNext(scope, progress.cards, {
