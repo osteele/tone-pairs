@@ -7,6 +7,9 @@ import { samePattern } from "./pinyin";
  * The spoken pattern is always right: it is what the recording says. The citation pattern
  * (你好 written 3-3, said 2-3) is also accepted, unless another word in the family is said
  * that way, in which case the citation answer would name the other word.
+ *
+ * A word said 2-3 also accepts 3-3, whatever its citation tones: two third tones are said
+ * 2-3, so the two cannot be told apart by ear, and the drill tests listening, not spelling.
  */
 export function acceptedAnswers(word: Word, family: Word[]): Pattern[] {
   const accepted: Pattern[] = [word.spoken];
@@ -14,6 +17,9 @@ export function acceptedAnswers(word: Word, family: Word[]): Pattern[] {
     (w) => w.id !== word.id && samePattern(w.spoken, word.tones),
   );
   if (!samePattern(word.tones, word.spoken) && !citationIsOtherWord) accepted.push(word.tones);
+  if (samePattern(word.spoken, [2, 3]) && !accepted.some((p) => samePattern(p, [3, 3]))) {
+    accepted.push([3, 3]);
+  }
   return accepted;
 }
 

@@ -45,6 +45,16 @@ describe("grading", () => {
     expect(isCorrect([3, 3], yici3, family)).toBe(true);
   });
 
+  test("2-3 and 3-3 are both right for a word said 2-3, however it is written", () => {
+    const rising = word("yi2ci3", "疑此", [2, 3]);
+    expect(isCorrect([3, 3], rising, [rising])).toBe(true);
+    expect(isCorrect([2, 3], rising, [rising])).toBe(true);
+    expect(isCorrect([2, 3], yici3, family)).toBe(true);
+    expect(isCorrect([3, 3], yici3, family)).toBe(true);
+    // Only for a word said 2-3.
+    expect(isCorrect([3, 3], yici2, family)).toBe(false);
+  });
+
   test("the citation pattern is wrong when it names another word", () => {
     expect(acceptedAnswers(yici, family)).toEqual([[2, 4]]);
     expect(isCorrect([1, 4], yici, family)).toBe(false);
