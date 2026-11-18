@@ -1,9 +1,12 @@
-"""Where speech starts, where the syllables divide, and where speech ends, in each recording.
+"""Where speech starts, where the syllables divide, and where speech ends, in each recording,
+and the pitch measured through each syllable.
 
-The app draws idealized tone contours, not measured pitch; these times only pace the
-animation along the contour and trim trailing silence when clips play back to back.
+The times pace the animation along the contour and trim trailing silence when clips play
+back to back. The measured pitch is drawn faintly behind the idealized contour, so the
+listener can see what the recording itself does.
 """
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,6 +15,8 @@ import parselmouth
 _STEP = 0.01
 # Below Praat's default (0.45), so the creaky low part of a third tone counts as voiced.
 _VOICING_THRESHOLD = 0.3
+# Points sampled through each syllable for the measured pitch.
+_TRACK_POINTS = 16
 
 
 @dataclass(frozen=True)
@@ -60,3 +65,38 @@ def measure(path: Path, pitch_floor: float, pitch_ceiling: float) -> Timing:
         ]
         split = min(frames)[1] if frames else (start + end) / 2
     return Timing(round(start, 3), round(split, 3), round(end, 3))
+
+
+def track(
+    path: Path,
+    pitch_floor: float,
+    pitch_ceiling: float,
+    bounds: Timing,
+    span: tuple[float, float],
+) -> list[list[int | None]]:
+    """Measured pitch at evenly spaced points through each syllable, in tenths of a level on
+    the five-level scale (35 is level 3.5): finer than the staff can show, and compact as JSON.
+
+    ``span`` gives the voice's low and high pitch, in semitones above 100 Hz, as levels 1 and 5
+    (resynthesis.voice_range). Unvoiced points are None.
+    """
+    pitch = parselmouth.Sound(str(path)).to_pitch_ac(
+        time_step=_STEP,
+        pitch_floor=pitch_floor,
+        pitch_ceiling=pitch_ceiling,
+        voicing_threshold=_VOICING_THRESHOLD,
+    )
+    low, high = span
+    syllables: list[list[int | None]] = []
+    for start, end in ((bounds.start, bounds.split), (bounds.split, bounds.end)):
+        points: list[int | None] = []
+        for k in range(_TRACK_POINTS):
+            hertz = pitch.get_value_at_time(start + (k + 0.5) / _TRACK_POINTS * (end - start))
+            if math.isnan(hertz):
+                points.append(None)
+            else:
+                semitones = 12 * math.log2(hertz / 100)
+                level = 1 + 4 * (semitones - low) / (high - low)
+                points.append(round(level * 10))
+        syllables.append(points)
+    return syllables

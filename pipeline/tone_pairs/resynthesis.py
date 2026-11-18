@@ -204,8 +204,3 @@ def render_all(plans: Sequence[Plan], directory: Path) -> int:
         span = voice_range(drill, voice)
         created += sum(render(p, voice, directory, span) for p in plans)
     return created
-
-
-def complete(item: Plan, directory: Path) -> bool:
-    """Whether the plan has a recording in every voice."""
-    return all((directory / tts.filename(item.word, v)).exists() for v in tts.VOICES)

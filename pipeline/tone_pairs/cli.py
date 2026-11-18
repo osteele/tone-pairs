@@ -2,8 +2,10 @@
 
     uv run tone-pairs [--no-audio]
 
-Reads homework/*.txt and homework/extra-words.tsv; writes web/public/data/words.json and
-web/public/audio/*.mp3.
+Reads homework/*.txt and homework/extra-words.tsv. Writes web/public/data/words.json, which
+depends only on those and the dictionary, and so is committed; web/public/audio/*.mp3; and
+web/public/data/recordings.json, what was measured in each recording, which like the
+recordings themselves is kept out of the repository.
 """
 
 import argparse
@@ -43,7 +45,7 @@ def report(families: list[Family]) -> None:
             print(f"    WARNING {warning}")
 
 
-def word_json(word: Word, family: Family, audio: Path) -> dict[str, object]:
+def word_json(word: Word, family: Family) -> dict[str, object]:
     return {
         "id": word.id,
         "hanzi": word.hanzi,
@@ -55,17 +57,12 @@ def word_json(word: Word, family: Family, audio: Path) -> dict[str, object]:
         "real": word.real,
         "family": family.key,
         "exercises": family.exercises,
-        "audio": {v.key: tts.url(word, v, audio) for v in tts.VOICES},
         **({"madeFrom": f"{word.source.pinyin} {word.source.hanzi}"} if word.source else {}),
     }
 
 
-def manifest(
-    exercises: list[tuple[str, str]],
-    families: list[Family],
-    timings: dict[str, timing.Timing],
-    audio: Path,
-) -> dict[str, object]:
+def manifest(exercises: list[tuple[str, str]], families: list[Family]) -> dict[str, object]:
+    """The word list. A word's recording in a voice is audio/<id>-<voice>.mp3."""
     return {
         "exercises": [{"id": id, "title": title} for id, title in exercises],
         "voices": [{"key": v.key, "label": v.label} for v in tts.VOICES],
@@ -75,12 +72,11 @@ def manifest(
                 "printed": f.printed,
                 "exercises": f.exercises,
                 "words": [w.id for w in f.words],
-                "contrasts": [word_json(w, f, audio) for w in f.contrasts],
+                "contrasts": [word_json(w, f) for w in f.contrasts],
             }
             for f in families
         ],
-        "words": [word_json(w, f, audio) for f in families for w in f.words],
-        "timing": {path: [t.start, t.split, t.end] for path, t in sorted(timings.items())},
+        "words": [word_json(w, f) for f in families for w in f.words],
     }
 
 
@@ -113,33 +109,49 @@ def main() -> None:
     if not args.no_audio:
         made = resynthesis.render_all(plans, audio)
         print(f"re-pitched {made} recordings for {len(plans)} patterns no word has")
-    complete = [p for p in plans if resynthesis.complete(p, audio)]
-    for item in complete:
+    # A re-pitched pattern is listed whether or not every voice could be made; the app treats
+    # a voice with no entry in recordings.json as having no recording.
+    for item in plans:
         item.family.contrasts.append(item.word)
-    if len(complete) < len(plans):
-        print(f"WARNING {len(plans) - len(complete)} re-pitched patterns lack a voice; left out")
     recorded = [w for f in families for w in (*f.words, *f.contrasts)]
-
-    timings: dict[str, timing.Timing] = {}
-    for word in recorded:
-        for voice in tts.VOICES:
-            path = audio / tts.filename(word, voice)
-            if path.exists():
-                timings[tts.url(word, voice, audio)] = timing.measure(
-                    path, voice.pitch_floor, voice.pitch_ceiling
-                )
 
     out = PUBLIC / "data" / "words.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    data = manifest([(ex.id, ex.title) for ex in exercises], families, timings, audio)
+    data = manifest([(ex.id, ex.title) for ex in exercises], families)
     out.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    # Recordings of words no longer in any family, or re-pitched in only some voices, would
-    # otherwise be deployed for nothing.
-    used = {path.split("?")[0] for path in timings}
-    stale = [p for p in audio.glob("*.mp3") if f"audio/{p.name}" not in used]
+
+    measured = measure_recordings(recorded, audio)
+    recordings_out = PUBLIC / "data" / "recordings.json"
+    recordings_out.write_text(json.dumps(measured, separators=(",", ":")) + "\n", encoding="utf-8")
+    missing = len(recorded) * len(tts.VOICES) - len(measured)
+    if missing:
+        print(f"WARNING {missing} word-voice pairs have no recording")
+
+    # Recordings of words no longer in any family would otherwise be deployed for nothing.
+    stale = [p for p in audio.glob("*.mp3") if f"audio/{p.name}" not in measured]
     for path in stale:
         path.unlink()
     if stale:
         print(f"removed {len(stale)} recordings no word uses")
     drill = sum(len(f.words) for f in families)
     print(f"wrote {out.relative_to(ROOT)}: {drill} drill words, {len(recorded)} recorded words")
+
+
+def measure_recordings(words: list[Word], audio: Path) -> dict[str, dict[str, object]]:
+    """For each recording on disk: a digest of its content, so a re-recorded clip gets a new
+    URL; its timing (timing.measure); and its measured pitch (timing.track)."""
+    measured: dict[str, dict[str, object]] = {}
+    for voice in tts.VOICES:
+        spoken = [audio / tts.filename(w, voice) for w in words if w.source is None]
+        span = resynthesis.voice_range([p for p in spoken if p.exists()], voice)
+        for word in words:
+            path = audio / tts.filename(word, voice)
+            if not path.exists():
+                continue
+            bounds = timing.measure(path, voice.pitch_floor, voice.pitch_ceiling)
+            measured[f"audio/{path.name}"] = {
+                "v": tts.version(path),
+                "t": [bounds.start, bounds.split, bounds.end],
+                "p": timing.track(path, voice.pitch_floor, voice.pitch_ceiling, bounds, span),
+            }
+    return dict(sorted(measured.items()))

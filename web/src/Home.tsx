@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaCircleInfo, FaGear } from "react-icons/fa6";
 import { About } from "./About";
 import type { Deck } from "./deck";
@@ -7,7 +7,7 @@ import { Modal } from "./Modal";
 import type { SyncStatus } from "./offline";
 import { describeRecordings } from "./offline";
 import type { Progress, Settings } from "./progress";
-import { localDate } from "./progress";
+import { emptyProgress, localDate } from "./progress";
 import { countScope } from "./queue";
 import type { Mode } from "./session";
 import { newAllowed } from "./session";
@@ -124,7 +124,7 @@ export function Home({ deck, progress, setProgress, onStart, recordings }: Props
       </section>
 
       <Modal title="About" open={panel === "about"} onClose={() => setPanel(null)}>
-        <About recordings={recordings} />
+        <About />
       </Modal>
 
       <Modal title="Settings" open={panel === "settings"} onClose={() => setPanel(null)}>
@@ -151,6 +151,7 @@ export function Home({ deck, progress, setProgress, onStart, recordings }: Props
             />
           </label>
           <Flagged progress={progress} setProgress={setProgress} />
+          <Reset setProgress={setProgress} />
         </div>
       </Modal>
     </main>
@@ -187,5 +188,36 @@ function Flagged({ progress, setProgress }: Pick<Props, "progress" | "setProgres
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Erase review history, scheduling, and flagged recordings, keeping the settings. A second
+ * tap within a few seconds confirms, so one stray tap does nothing.
+ */
+function Reset({ setProgress }: Pick<Props, "setProgress">) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const timer = window.setTimeout(() => setArmed(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [armed]);
+  return (
+    <button
+      type="button"
+      className={`self-start rounded border px-3 py-1 text-sm ${
+        armed ? "border-rose-600 bg-rose-600 text-white" : "border-stone-300 text-rose-700"
+      }`}
+      onClick={() => {
+        if (!armed) {
+          setArmed(true);
+          return;
+        }
+        setArmed(false);
+        setProgress((p) => ({ ...emptyProgress(), settings: p.settings }));
+      }}
+    >
+      {armed ? "Tap again to erase all progress" : "Reset progress"}
+    </button>
   );
 }

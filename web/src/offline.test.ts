@@ -171,7 +171,6 @@ describe("download order", () => {
     real: true,
     family,
     exercises: [exercise],
-    audio: { v: `audio/${id}.mp3` },
   });
   const lesson1 = word("one", "f1", "lesson1");
   const due = word("due", "f2", "lesson2");
@@ -186,11 +185,14 @@ describe("download order", () => {
       { key: "f3", printed: [], exercises: ["lesson2"], words: ["fresh"], contrasts: [] },
     ],
     words: [lesson1, due, fresh],
-    timing: Object.fromEntries(
-      ["one", "due", "fresh", "contrast", "orphan"].map((id) => [`audio/${id}.mp3`, [0, 0.5, 1]]),
+    recordings: Object.fromEntries(
+      ["one", "due", "fresh", "contrast", "orphan"].map((id) => [
+        `audio/${id}-v.mp3`,
+        { v: "a", t: [0, 0.5, 1], p: [] },
+      ]),
     ),
   };
-  const names = (urls: string[]) => urls.map((u) => u.replace(/^.*\/(\w+)\.mp3$/, "$1"));
+  const names = (urls: string[]) => urls.map((u) => u.replace(/^.*\/(\w+)-v\.mp3\?v=a$/, "$1"));
 
   test("the selected lesson comes first, words under review before new ones", () => {
     const cards = { due: { dueAt: new Date("2026-11-20") } as Card };

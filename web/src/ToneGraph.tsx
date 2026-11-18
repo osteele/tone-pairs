@@ -1,15 +1,17 @@
 import { levelAt, patternLevels, placeAt, syllableWeights } from "./contour";
-import type { Pattern, Timing } from "./deck";
+import type { Pattern, PitchTrack, Timing, Tone } from "./deck";
+import { TONE_COLORS } from "./tones";
 import { usePlayback } from "./usePlayback";
 
 export interface GraphLine {
   key: string;
   pattern: Pattern;
   label: string;
-  color: string;
   /** The recording this line animates along, with its timing; absent if there is none. */
   path?: string;
   timing?: Timing;
+  /** The recording's measured pitch, drawn faintly behind the idealized contour. */
+  track?: PitchTrack;
 }
 
 const W = 320;
@@ -21,11 +23,13 @@ const BOTTOM = 10;
 const GAP = 18;
 const SAMPLES = 32;
 const STROKE = 6;
+const JOIN_COLOR = "#a8a29e";
 
 const y = (level: number) => TOP + ((5 - level) / 4) * (H - TOP - BOTTOM);
 
 interface Syllable {
   id: string;
+  tone: Tone;
   levels: readonly number[];
   /** [x start, width] */
   span: [number, number];
@@ -40,7 +44,7 @@ function syllables(key: string, pattern: Pattern): Syllable[] {
   return weights.map((w, i) => {
     const span: [number, number] = [x, (usable * w) / total];
     x += span[1] + GAP;
-    return { id: `${key}:${i}`, levels: levels[i]!, span };
+    return { id: `${key}:${i}`, tone: pattern[i]!, levels: levels[i]!, span };
   });
 }
 
@@ -56,12 +60,34 @@ function syllablePath(levels: readonly number[], [x0, width]: [number, number], 
 }
 
 /**
- * The idealized contour of one tone pattern on the five-level staff, with a dot that follows
- * the line's recording while it plays. The caller labels the line, in its color.
+ * SVG path through a syllable's measured pitch, in tenths of a level, broken where the
+ * recording is unvoiced.
+ */
+function trackPath(points: readonly (number | null)[], [x0, width]: [number, number]): string {
+  let d = "";
+  let drawing = false;
+  points.forEach((tenths, k) => {
+    if (tenths === null) {
+      drawing = false;
+      return;
+    }
+    const x = x0 + ((k + 0.5) / points.length) * width;
+    const clamped = Math.min(Math.max(tenths / 10, 0.5), 5.5);
+    d += `${drawing ? "L" : "M"}${x.toFixed(1)},${y(clamped).toFixed(1)}`;
+    drawing = true;
+  });
+  return d;
+}
+
+/**
+ * The idealized contour of one tone pattern on the five-level staff, each syllable in its
+ * tone's color, with the recording's measured pitch faintly behind it and a dot that follows
+ * the recording while it plays. The caller says which word the staff shows.
  */
 export function ToneGraph({ line }: { line: GraphLine }) {
   const playback = usePlayback();
   const playing = line.path !== undefined && line.path === playback?.clip?.path;
+  const parts = syllables(line.key, line.pattern);
 
   return (
     <svg
@@ -78,15 +104,28 @@ export function ToneGraph({ line }: { line: GraphLine }) {
           </text>
         </g>
       ))}
-      {syllables(line.key, line.pattern).map((syllable, i, all) => {
-        const next = all[i + 1];
+      {line.track &&
+        parts.map((syllable, i) => (
+          <path
+            key={`track:${syllable.id}`}
+            d={trackPath(line.track?.[i] ?? [], syllable.span)}
+            fill="none"
+            stroke={TONE_COLORS[syllable.tone]}
+            strokeOpacity={0.35}
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ))}
+      {parts.map((syllable, i) => {
+        const next = parts[i + 1];
         const [x0, width] = syllable.span;
         return (
           <g key={syllable.id}>
             <path
               d={syllablePath(syllable.levels, syllable.span)}
               fill="none"
-              stroke={line.color}
+              stroke={TONE_COLORS[syllable.tone]}
               strokeWidth={STROKE}
               strokeLinecap="round"
             />
@@ -97,7 +136,7 @@ export function ToneGraph({ line }: { line: GraphLine }) {
                 y1={y(levelAt(syllable.levels, 1))}
                 x2={next.span[0]}
                 y2={y(levelAt(next.levels, 0))}
-                stroke={line.color}
+                stroke={JOIN_COLOR}
                 strokeWidth={STROKE / 2}
                 strokeDasharray="2 5"
                 strokeLinecap="round"
@@ -107,15 +146,24 @@ export function ToneGraph({ line }: { line: GraphLine }) {
         );
       })}
       {playing && line.timing && playback && (
-        <Playhead line={line} trail={STROKE + 4} time={playback.time} />
+        <Playhead parts={parts} timing={line.timing} trail={STROKE + 4} time={playback.time} />
       )}
     </svg>
   );
 }
 
-function Playhead({ line, trail, time }: { line: GraphLine; trail: number; time: number }) {
-  const parts = syllables(line.key, line.pattern);
-  const place = placeAt(time, line.timing!);
+function Playhead({
+  parts,
+  timing,
+  trail,
+  time,
+}: {
+  parts: Syllable[];
+  timing: Timing;
+  trail: number;
+  time: number;
+}) {
+  const place = placeAt(time, timing);
   const current = parts[place.syllable]!;
   const [x0, width] = current.span;
   return (
@@ -125,7 +173,7 @@ function Playhead({ line, trail, time }: { line: GraphLine; trail: number; time:
           key={done.id}
           d={syllablePath(done.levels, done.span)}
           fill="none"
-          stroke={line.color}
+          stroke={TONE_COLORS[done.tone]}
           strokeWidth={trail}
           strokeLinecap="round"
         />
@@ -133,7 +181,7 @@ function Playhead({ line, trail, time }: { line: GraphLine; trail: number; time:
       <path
         d={syllablePath(current.levels, current.span, place.fraction)}
         fill="none"
-        stroke={line.color}
+        stroke={TONE_COLORS[current.tone]}
         strokeWidth={trail}
         strokeLinecap="round"
       />
@@ -142,7 +190,7 @@ function Playhead({ line, trail, time }: { line: GraphLine; trail: number; time:
         cy={y(levelAt(current.levels, place.fraction))}
         r={8}
         fill="white"
-        stroke={line.color}
+        stroke={TONE_COLORS[current.tone]}
         strokeWidth={4}
       />
     </g>

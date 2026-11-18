@@ -1,6 +1,4 @@
 import { FaGithub } from "react-icons/fa6";
-import type { SyncStatus } from "./offline";
-import { describeRecordings } from "./offline";
 
 const CREDITS = [
   {
@@ -38,7 +36,7 @@ const CREDITS = [
 const LINK = "font-medium text-teal-700 underline";
 const REPO = "https://github.com/osteele/tone-pairs";
 
-export function About({ recordings }: { recordings: SyncStatus | null }) {
+export function About() {
   return (
     <div className="flex flex-col gap-3 text-sm">
       <div className="flex items-center gap-4">
@@ -55,13 +53,15 @@ export function About({ recordings }: { recordings: SyncStatus | null }) {
               Oliver Steele
             </a>
           </p>
+          <p className="text-xs text-stone-400">
+            Build {__BUILD_ID__} · {new Date(__BUILD_TIME__).toLocaleDateString()}
+          </p>
         </div>
       </div>
       <p>
         A listening drill for the tones of two-syllable Mandarin words. Each word is played and you
-        name its two tones; FSRS schedules the words you miss to come back sooner.
+        name its two tones; spaced repetition brings the words you miss back sooner.
       </p>
-      {recordings && <p>{describeRecordings(recordings)}</p>}
       <h3 className="font-semibold">Credits</h3>
       <ul className="flex flex-col gap-2">
         {CREDITS.map((c) => (
@@ -73,6 +73,14 @@ export function About({ recordings }: { recordings: SyncStatus | null }) {
           </li>
         ))}
       </ul>
+      <a
+        href={`${REPO}/blob/main/docs/how-it-works.md`}
+        target="_blank"
+        rel="noreferrer"
+        className={LINK}
+      >
+        How it works: the words, recordings, pitch graphs, and grading
+      </a>
       <a
         href={REPO}
         target="_blank"

@@ -25,7 +25,6 @@ function word(
     real: true,
     family,
     exercises: ["hsk1-07"],
-    audio: { v: `audio/${id}.mp3` },
   };
 }
 

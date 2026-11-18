@@ -1,6 +1,6 @@
 import type { Clip } from "./audio";
 import type { Deck, Word } from "./deck";
-import { wordsInScope } from "./deck";
+import { recorded, recordingOf, wordsInScope } from "./deck";
 import type { Card, Progress } from "./progress";
 import { introducedOn, localDate } from "./progress";
 import type { Pick } from "./queue";
@@ -59,10 +59,18 @@ export function nextPrompt(
 /** Seconds of audio kept after speech ends, so a clip does not sound cut off. */
 const TAIL_SECONDS = 0.25;
 
-export function clipFor(deck: Deck, word: Word, voice: string): Clip {
-  const path = word.audio[voice]!;
-  const timing = deck.timing[path];
-  return { path, stopAt: timing ? timing[2] + TAIL_SECONDS : undefined };
+/** The word's recording in this voice, as a clip trimmed to its speech; none if unrecorded. */
+export function clipFor(deck: Deck, word: Word, voice: string): Clip | undefined {
+  const recording = recordingOf(deck, word, voice);
+  if (!recording) return undefined;
+  return { path: recording.url, stopAt: recording.timing[2] + TAIL_SECONDS };
+}
+
+/** Every recording of the word's family in this voice: whatever the feedback may play. */
+export function familyPaths(deck: Deck, word: Word, voice: string): string[] {
+  return recorded(deck, word)
+    .map((w) => recordingOf(deck, w, voice)?.url)
+    .filter((p): p is string => p !== undefined);
 }
 
 /**

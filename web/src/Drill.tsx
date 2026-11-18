@@ -3,23 +3,26 @@ import {
   FaArrowRight,
   FaCheck,
   FaFlag,
+  FaPen,
   FaPlay,
   FaRepeat,
   FaStop,
   FaVolumeHigh,
   FaXmark,
 } from "react-icons/fa6";
-import { play, playSequence, stop } from "./audio";
-import type { Deck, Tone, Word } from "./deck";
-import { recorded, siblings } from "./deck";
+import { play, playSequence, prefetch, stop } from "./audio";
+import type { Deck, Pattern, Tone, Word } from "./deck";
+import { recordedIn, recordingOf, siblings } from "./deck";
 import { isCorrect, spokenForm, wordForAnswer } from "./grading";
 import { markSyllable, samePattern } from "./pinyin";
 import type { Progress, Scheduler } from "./progress";
 import { record } from "./progress";
 import type { Mode, Prompt } from "./session";
-import { advancesAfterRight, clipFor, nextPrompt } from "./session";
+import { advancesAfterRight, clipFor, familyPaths, nextPrompt } from "./session";
 import type { GraphLine } from "./ToneGraph";
 import { ToneGraph } from "./ToneGraph";
+import type { Role } from "./tones";
+import { ROLES, TONE_COLORS } from "./tones";
 import { usePlayback } from "./usePlayback";
 
 interface Props {
@@ -69,14 +72,34 @@ export function Drill({
 
   const say = useCallback(
     async (word: Word, voice: string) => {
-      setBlocked((await play(clipFor(deck, word, voice))) === "blocked");
+      const clip = clipFor(deck, word, voice);
+      if (clip) setBlocked((await play(clip)) === "blocked");
     },
     [deck],
   );
 
+  // While the listener answers, fetch everything the feedback may play.
+  useEffect(() => {
+    if (prompt) prefetch(familyPaths(deck, prompt.word, prompt.voice));
+  }, [deck, prompt]);
+
+  // On the feedback screen, choose the next prompt and fetch its recording, so Next starts it
+  // without a network delay.
+  const upcoming = useRef<Prompt | null | undefined>(undefined);
+  useEffect(() => {
+    if (!result || !prompt || upcoming.current !== undefined) return;
+    upcoming.current = nextPrompt(deck, progress, mode, prompt.word.id, new Date());
+    const clip = upcoming.current && clipFor(deck, upcoming.current.word, upcoming.current.voice);
+    if (clip) prefetch([clip.path]);
+  }, [deck, mode, prompt, progress, result]);
+
   const advance = useCallback(() => {
     cancelAdvance();
-    const next = nextPrompt(deck, latest.current, mode, prompt?.word.id, new Date());
+    const next =
+      upcoming.current !== undefined
+        ? upcoming.current
+        : nextPrompt(deck, latest.current, mode, prompt?.word.id, new Date());
+    upcoming.current = undefined;
     setPrompt(next);
     setChoices([null, null]);
     setResult(null);
@@ -97,12 +120,13 @@ export function Drill({
     setResult({ answer: pattern, correct });
     if (!correct) {
       // Inside the tap that answered, so iOS allows the sequence to start.
-      const answered = wordForAnswer(pattern, recorded(deck, prompt.word));
-      if (answered && answered.id !== prompt.word.id) {
-        void playSequence([
-          clipFor(deck, prompt.word, prompt.voice),
-          clipFor(deck, answered, prompt.voice),
-        ]);
+      const answered = wordForAnswer(pattern, recordedIn(deck, prompt.word, prompt.voice));
+      const clips = answered && [
+        clipFor(deck, prompt.word, prompt.voice),
+        clipFor(deck, answered, prompt.voice),
+      ];
+      if (answered && answered.id !== prompt.word.id && clips?.[0] && clips[1]) {
+        void playSequence([clips[0], clips[1]]);
       }
     }
     setTally((t) => ({ answered: t.answered + 1, right: t.right + (correct ? 1 : 0) }));
@@ -228,14 +252,16 @@ export function Drill({
       {/* After an answer the feedback names the word and has its own play button. */}
       {!result && (
         <section className="flex flex-col items-center gap-3">
-          <p className="text-4xl font-medium tracking-wide">
-            {word.syllables
-              .map((s, i) => {
-                const tone = choices[i];
-                return tone == null ? s : markSyllable(s, tone);
-              })
-              .join(" ")
-              .replaceAll("u:", "ü")}
+          <p className="flex gap-3 text-4xl font-medium tracking-wide">
+            {word.syllables.map((s, i) => {
+              const tone = choices[i];
+              return (
+                // biome-ignore lint/suspicious/noArrayIndexKey: a word's syllables never reorder.
+                <span key={i} style={tone == null ? undefined : { color: TONE_COLORS[tone] }}>
+                  {(tone == null ? s : markSyllable(s, tone)).replaceAll("u:", "ü")}
+                </span>
+              );
+            })}
           </p>
           <button
             type="button"
@@ -300,10 +326,13 @@ function ToneRow({
           type="button"
           onClick={() => onPick(tone)}
           className={`flex flex-col items-center rounded-xl border py-3 text-xl active:scale-95 ${
-            selected === tone
-              ? "border-teal-600 bg-teal-600 text-white"
-              : "border-stone-300 bg-white"
+            selected === tone ? "text-white" : "border-stone-300 bg-white"
           }`}
+          style={
+            selected === tone
+              ? { background: TONE_COLORS[tone], borderColor: TONE_COLORS[tone] }
+              : { color: TONE_COLORS[tone] }
+          }
         >
           {markSyllable(syllable, tone)}
           <span className="text-xs opacity-60">{tone === 5 ? "neutral" : tone}</span>
@@ -312,12 +341,6 @@ function ToneRow({
     </div>
   );
 }
-
-const PLAYED = "#0d9488";
-const ANSWERED = "#dc2626";
-const OTHER = "#6366f1";
-// A word that has no line on the graph at the moment.
-const UNDRAWN = "#a8a29e";
 
 function Feedback({
   deck,
@@ -339,7 +362,9 @@ function Feedback({
 }) {
   const { word, voice } = prompt;
   // The word whose tones the listener named, if one was recorded.
-  const answered = result.correct ? undefined : wordForAnswer(result.answer, recorded(deck, word));
+  const answered = result.correct
+    ? undefined
+    : wordForAnswer(result.answer, recordedIn(deck, word, voice));
   const answeredPinyin = word.syllables.map((s, i) => markSyllable(s, result.answer[i]!)).join("");
   // Real drill words of the family besides the two above, to compare against the word played.
   const others = siblings(deck, word).filter(
@@ -356,36 +381,32 @@ function Feedback({
   const answeredClip = answered ? clipFor(deck, answered, voice) : undefined;
   const comparisonClip = comparison ? clipFor(deck, comparison, voice) : undefined;
 
-  const played: GraphLine = {
-    key: "played",
-    pattern: word.spoken,
-    label: `played ${word.pinyin}`,
-    color: PLAYED,
-    path: playedClip.path,
-    timing: deck.timing[playedClip.path],
+  const graphLine = (key: string, pattern: Pattern, label: string, of?: Word): GraphLine => {
+    const recording = of && recordingOf(deck, of, voice);
+    return {
+      key,
+      pattern,
+      label,
+      path: recording?.url,
+      timing: recording?.timing,
+      track: recording?.track,
+    };
   };
+  const played = graphLine("played", word.spoken, `played ${word.pinyin}`, word);
   // Drawn on a second staff, beneath the word played.
-  let compared: GraphLine | undefined;
-  if (picked) {
-    const clip = clipFor(deck, picked, voice);
-    compared = {
-      key: "other",
-      pattern: picked.spoken,
-      label: picked.pinyin,
-      color: OTHER,
-      path: clip.path,
-      timing: deck.timing[clip.path],
-    };
-  } else if (!result.correct) {
-    compared = {
-      key: "answered",
-      pattern: spokenForm(result.answer),
-      label: `your answer ${answeredPinyin}`,
-      color: ANSWERED,
-      path: answeredClip?.path,
-      timing: answeredClip ? deck.timing[answeredClip.path] : undefined,
-    };
-  }
+  const compared = picked
+    ? graphLine("other", picked.spoken, picked.pinyin, picked)
+    : result.correct
+      ? undefined
+      : graphLine("answered", spokenForm(result.answer), `your answer ${answeredPinyin}`, answered);
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = (hanzi: string) => {
+    onInteract();
+    void navigator.clipboard.writeText(hanzi).then(() => {
+      setCopied(hanzi);
+      window.setTimeout(() => setCopied((c) => (c === hanzi ? null : c)), 1500);
+    });
+  };
 
   const tapped = (fn: () => void) => () => {
     onInteract();
@@ -409,22 +430,26 @@ function Feedback({
         </p>
         <WordRow
           label="Played"
-          color={PLAYED}
-          pinyin={word.pinyin}
+          who="played"
+          syllables={word.syllables}
+          tones={word.tones}
           word={word}
+          onCopy={copy}
           note={
             samePattern(word.tones, word.spoken)
               ? undefined
               : `written ${word.tones.join("-")}, said ${word.spoken.join("-")}`
           }
-          onPlay={tapped(() => void play(playedClip))}
+          onPlay={playedClip ? tapped(() => void play(playedClip)) : undefined}
         />
         {!result.correct && (
           <WordRow
             label="Your answer"
-            color={picked ? UNDRAWN : ANSWERED}
-            pinyin={answeredPinyin}
+            who={picked ? "other" : "answered"}
+            syllables={word.syllables}
+            tones={result.answer}
             word={answered}
+            onCopy={copy}
             onPlay={
               answeredClip
                 ? tapped(() => {
@@ -437,10 +462,17 @@ function Feedback({
         )}
       </div>
 
-      <div className="flex flex-col gap-6">
-        <Staff caption={`Played · ${word.pinyin}`} line={played} />
+      <div className="flex flex-col gap-3">
+        <Staff
+          caption={`Played · ${word.pinyin}`}
+          who="played"
+          line={played}
+          onPlay={playedClip ? tapped(() => void play(playedClip)) : undefined}
+        />
         {compared && (
           <Staff
+            who={picked ? "other" : "answered"}
+            onPlay={comparisonClip ? tapped(() => void play(comparisonClip)) : undefined}
             caption={
               picked
                 ? `Compared · ${picked.pinyin} ${picked.hanzi}`
@@ -461,7 +493,7 @@ function Feedback({
             type="button"
             disabled={!comparisonClip}
             onClick={tapped(
-              () => comparisonClip && void playSequence([playedClip, comparisonClip]),
+              () => playedClip && comparisonClip && void playSequence([playedClip, comparisonClip]),
             )}
             className="flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white py-2.5 disabled:opacity-40"
           >
@@ -472,7 +504,7 @@ function Feedback({
             disabled={!comparisonClip}
             onClick={tapped(() => {
               if (looping) stop();
-              else if (comparisonClip)
+              else if (playedClip && comparisonClip)
                 void playSequence([playedClip, comparisonClip], { loop: true });
             })}
             className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 disabled:opacity-40 ${
@@ -488,28 +520,45 @@ function Feedback({
         <div className="flex flex-col">
           <p className="text-xs text-stone-500">Other words with these syllables</p>
           {others.map((other) => (
-            <button
+            <div
               key={other.id}
-              type="button"
-              onClick={tapped(() => {
-                setPicked(other);
-                void play(clipFor(deck, other, voice));
-              })}
-              className={`flex items-center gap-3 rounded-lg py-1 text-left active:bg-stone-200 ${
+              className={`flex items-center gap-3 rounded-lg py-1 ${
                 picked?.id === other.id ? "bg-stone-100" : ""
               }`}
             >
               <span
                 className="h-5 w-1.5 shrink-0 rounded"
-                style={{ background: picked?.id === other.id ? OTHER : UNDRAWN }}
+                style={{
+                  background: ROLES.other.color,
+                  opacity: picked?.id === other.id ? 1 : 0.4,
+                }}
               />
-              <span className="font-medium">{other.pinyin}</span>
-              <span>{other.hanzi}</span>
-              <span className="min-w-0 flex-1 truncate text-sm text-stone-500">{other.gloss}</span>
-              <FaPlay className="mr-3 shrink-0 text-stone-400" />
-            </button>
+              <Pinyin syllables={other.syllables} tones={other.tones} />
+              <Hanzi hanzi={other.hanzi} onCopy={copy} />
+              <button
+                type="button"
+                aria-label={`Play ${other.pinyin} and compare it`}
+                onClick={tapped(() => {
+                  setPicked(other);
+                  const clip = clipFor(deck, other, voice);
+                  if (clip) void play(clip);
+                })}
+                className="flex min-w-0 flex-1 items-center gap-3 text-left active:opacity-60"
+              >
+                <span className="min-w-0 flex-1 truncate text-sm text-stone-500">
+                  {other.gloss}
+                </span>
+                <FaPlay className="mr-3 shrink-0 text-stone-400" />
+              </button>
+            </div>
           ))}
         </div>
+      )}
+
+      {copied && (
+        <p className="text-center text-sm text-stone-500" role="status">
+          Copied {copied}
+        </p>
       )}
 
       <div className="mt-auto flex gap-3">
@@ -537,33 +586,97 @@ function Feedback({
   );
 }
 
-/** A tone graph with a caption in its line's color, naming the word drawn. */
-function Staff({ caption, line }: { caption: string; line: GraphLine }) {
+const ROLE_ICONS: Record<Role, typeof FaPlay> = {
+  played: FaVolumeHigh,
+  answered: FaPen,
+  other: FaPlay,
+};
+
+/**
+ * A tone graph framed in its role's color, with a caption naming the word drawn. The frame,
+ * not the line, says which word this is: the line's colors are the tones'. Tapping it plays
+ * the word.
+ */
+function Staff({
+  caption,
+  who,
+  line,
+  onPlay,
+}: {
+  caption: string;
+  who: Role;
+  line: GraphLine;
+  onPlay: (() => void) | undefined;
+}) {
+  const Icon = ROLE_ICONS[who];
   return (
-    <figure className="flex flex-col gap-1">
-      <figcaption className="text-xs font-medium" style={{ color: line.color }}>
-        {caption}
-      </figcaption>
+    <button
+      type="button"
+      disabled={!onPlay}
+      onClick={onPlay}
+      aria-label={`Play ${caption}`}
+      className="flex flex-col gap-1 rounded-xl border-l-4 px-2 py-1.5 text-left active:opacity-70"
+      style={{ borderColor: ROLES[who].color, background: ROLES[who].tint }}
+    >
+      <span
+        className="flex items-center gap-1.5 text-xs font-medium"
+        style={{ color: ROLES[who].color }}
+      >
+        <Icon size={11} /> {caption}
+      </span>
       <ToneGraph line={line} />
-    </figure>
+    </button>
   );
 }
 
-/** One labelled word in the feedback, in its graph color, with a button to hear it. */
+/** Pinyin with each syllable in its tone's color. */
+function Pinyin({ syllables, tones }: { syllables: readonly string[]; tones: readonly Tone[] }) {
+  return (
+    <span className="font-medium">
+      {syllables.map((s, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: a word's syllables never reorder.
+        <span key={i} style={{ color: TONE_COLORS[tones[i]!] }}>
+          {markSyllable(s, tones[i]!)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** Hanzi that copy themselves to the clipboard when tapped. */
+function Hanzi({ hanzi, onCopy }: { hanzi: string; onCopy: (hanzi: string) => void }) {
+  if (!hanzi) return null;
+  return (
+    <button
+      type="button"
+      aria-label={`Copy ${hanzi}`}
+      onClick={() => onCopy(hanzi)}
+      className="rounded px-0.5 active:bg-stone-200"
+    >
+      {hanzi}
+    </button>
+  );
+}
+
+/** One labelled word in the feedback, marked with its role, with a button to hear it. */
 function WordRow({
   label,
-  color,
-  pinyin,
+  who,
+  syllables,
+  tones,
   word,
   note,
+  onCopy,
   onPlay,
 }: {
   label: string;
-  color: string;
-  pinyin: string;
+  who: Role;
+  syllables: readonly string[];
+  tones: readonly Tone[];
   /** Absent when no recording has these tones. */
   word: Word | undefined;
   note?: string;
+  onCopy: (hanzi: string) => void;
   onPlay: (() => void) | undefined;
 }) {
   const meaning =
@@ -576,23 +689,23 @@ function WordRow({
           : "not a word";
   return (
     <div className="flex items-center gap-3">
-      <span className="h-8 w-1.5 shrink-0 rounded" style={{ background: color }} />
+      <span className="h-8 w-1.5 shrink-0 rounded" style={{ background: ROLES[who].color }} />
       <div className="min-w-0 flex-1">
         <p className="text-xs text-stone-500">{label}</p>
-        <p className="truncate">
-          <span className="font-medium">{pinyin}</span>
-          {word && <span className="ml-2">{word.hanzi}</span>}
-          <span className="ml-2 text-sm text-stone-500">{meaning}</span>
+        <p className="flex items-baseline gap-2 truncate">
+          <Pinyin syllables={syllables} tones={tones} />
+          {word && <Hanzi hanzi={word.hanzi} onCopy={onCopy} />}
+          <span className="truncate text-sm text-stone-500">{meaning}</span>
         </p>
         {note && <p className="text-xs text-stone-500">{note}</p>}
       </div>
       <button
         type="button"
-        aria-label={`Play ${pinyin}`}
+        aria-label={`Play ${label}`}
         disabled={!onPlay}
         onClick={onPlay}
         className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white disabled:opacity-30"
-        style={{ color }}
+        style={{ color: ROLES[who].color }}
       >
         <FaPlay />
       </button>

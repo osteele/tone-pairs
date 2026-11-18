@@ -9,7 +9,7 @@
  */
 
 import type { Deck, Word } from "./deck";
-import { wordsInScope } from "./deck";
+import { recordingOf, wordsInScope } from "./deck";
 import type { Card } from "./progress";
 
 /** Must match the runtime cache name in vite.config.ts. */
@@ -62,17 +62,18 @@ export function recordingUrls(
   const ordered: string[] = [];
   for (const family of families) {
     for (const word of [...(members.get(family.key) ?? []), ...family.contrasts]) {
-      ordered.push(...Object.values(word.audio));
+      for (const voice of deck.voices) {
+        const recording = recordingOf(deck, word, voice.key);
+        if (recording) ordered.push(recording.url);
+      }
     }
   }
   // Every recording is listed, even one no family claims.
-  const recorded = Object.keys(deck.timing);
   const listed = new Set(ordered);
-  const paths = [
-    ...ordered.filter((p) => p in deck.timing),
-    ...recorded.filter((p) => !listed.has(p)),
-  ];
-  return [...new Set(paths)].map((path) => new URL(path, base).href);
+  const rest = Object.entries(deck.recordings)
+    .map(([path, measured]) => `${path}?v=${measured.v}`)
+    .filter((url) => !listed.has(url));
+  return [...new Set([...ordered, ...rest])].map((url) => new URL(url, base).href);
 }
 
 export function plan(wanted: string[], cached: string[]): { missing: string[]; stale: string[] } {

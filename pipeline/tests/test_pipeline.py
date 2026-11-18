@@ -103,16 +103,13 @@ def test_words_with_the_same_reading_have_distinct_ids_and_recordings():
     assert tts.filename(_word("时间", (2, 1)), voice) == "shi2jian1-89b4aa-xiaoxiao.mp3"
 
 
-def test_recording_url_changes_when_the_recording_does(tmp_path):
-    word, voice = _word("时间", (2, 1)), tts.VOICES[0]
-    assert tts.url(word, voice, tmp_path) == "audio/shi2jian1-89b4aa-xiaoxiao.mp3"
-    path = tmp_path / tts.filename(word, voice)
+def test_recording_version_changes_when_the_recording_does(tmp_path):
+    path = tmp_path / "clip.mp3"
     path.write_bytes(b"first")
-    first = tts.url(word, voice, tmp_path)
-    assert first.startswith("audio/shi2jian1-89b4aa-xiaoxiao.mp3?v=")
-    assert tts.url(word, voice, tmp_path) == first
+    first = tts.version(path)
+    assert tts.version(path) == first
     path.write_bytes(b"second")
-    assert tts.url(word, voice, tmp_path) != first
+    assert tts.version(path) != first
 
 
 def test_a_lesson_with_nothing_to_drill_is_still_an_exercise(tmp_path):
@@ -269,3 +266,19 @@ def test_resynthesis_reshapes_only_the_changed_syllable(tmp_path, two_syllables)
     kept = _thirds(made, voice, after.start, after.split)
     recorded = _thirds(original, voice, before.start, before.split)
     assert kept == pytest.approx(recorded, abs=1.0)
+
+
+def test_track_measures_each_syllable_on_the_five_level_scale(tmp_path, two_syllables):
+    voice = tts.VOICES[0]
+    path = two_syllables(tmp_path / "clip.mp3")
+    bounds = timing.measure(path, voice.pitch_floor, voice.pitch_ceiling)
+    first, second = timing.track(path, voice.pitch_floor, voice.pitch_ceiling, bounds, (10.0, 21.0))
+    assert len(first) == len(second) == 16
+    voiced = [tenths / 10 for tenths in second if tenths is not None]
+    # The second syllable holds 300 Hz: high and level.
+    assert len(voiced) > 8
+    assert min(voiced) > 3.5
+    assert max(voiced) - min(voiced) < 1.0
+    # A wider assumed range puts the same pitch lower on the scale.
+    _, wider = timing.track(path, voice.pitch_floor, voice.pitch_ceiling, bounds, (10.0, 30.0))
+    assert max(v for v in wider if v is not None) / 10 < max(voiced)

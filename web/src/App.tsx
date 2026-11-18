@@ -49,7 +49,8 @@ export function App() {
   // Called from the Start button's click handler, so the first clip plays inside a user gesture.
   const start = (mode: Mode) => {
     const first = nextPrompt(deck, progress, mode, undefined, new Date());
-    if (first) void play(clipFor(deck, first.word, first.voice));
+    const clip = first && clipFor(deck, first.word, first.voice);
+    if (clip) void play(clip);
     setSession((previous) => ({ key: (previous?.key ?? 0) + 1, mode, first }));
   };
 

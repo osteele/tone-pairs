@@ -1,4 +1,7 @@
-/** The word list written by the Python pipeline (web/public/data/words.json). */
+/**
+ * The word list written by the Python pipeline (web/public/data/words.json), with what was
+ * measured in each recording (web/public/data/recordings.json).
+ */
 
 export type Tone = 1 | 2 | 3 | 4 | 5;
 export type Pattern = readonly Tone[];
@@ -17,8 +20,6 @@ export interface Word {
   real: boolean;
   family: string;
   exercises: string[];
-  /** Voice key → audio path relative to the site root. */
-  audio: Record<string, string>;
   /**
    * For a recording with no word of its own, made by re-pitching another word's recording to
    * this pattern: that word's pinyin and hanzi. Such a word has no hanzi or gloss.
@@ -39,6 +40,28 @@ export interface Family {
 /** Seconds into a recording: [speech starts, syllables divide, speech ends]. */
 export type Timing = [number, number, number];
 
+/**
+ * A recording's measured pitch: for each syllable, tenths of a level on the five-level scale
+ * (35 is level 3.5) at evenly spaced points, null where it is unvoiced.
+ */
+export type PitchTrack = (number | null)[][];
+
+/** What was measured in one recording (recordings.json). */
+export interface Measured {
+  /** A digest of the recording's content, added to its URL so a new recording is fetched. */
+  v: string;
+  t: Timing;
+  p: PitchTrack;
+}
+
+/** A word's recording in one voice. */
+export interface Recording {
+  /** Relative to the site root, with the content digest. */
+  url: string;
+  timing: Timing;
+  track: PitchTrack;
+}
+
 export interface Exercise {
   id: string;
   title: string;
@@ -54,16 +77,38 @@ export interface Deck {
   voices: Voice[];
   families: Family[];
   words: Word[];
-  /** Audio path → timing. */
-  timing: Record<string, Timing>;
+  /** Audio path → what was measured in it; a word-voice pair with no entry has no recording. */
+  recordings: Record<string, Measured>;
 }
 
 export const ALL = "all";
 
+async function loadJson(name: string): Promise<unknown> {
+  const response = await fetch(`${import.meta.env.BASE_URL}data/${name}`);
+  if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
+  return response.json();
+}
+
 export async function loadDeck(): Promise<Deck> {
-  const response = await fetch(`${import.meta.env.BASE_URL}data/words.json`);
-  if (!response.ok) throw new Error(`words.json: HTTP ${response.status}`);
-  return (await response.json()) as Deck;
+  const [words, recordings] = await Promise.all([
+    loadJson("words.json"),
+    loadJson("recordings.json"),
+  ]);
+  return {
+    ...(words as Omit<Deck, "recordings">),
+    recordings: recordings as Record<string, Measured>,
+  };
+}
+
+export function audioPath(word: Word, voice: string): string {
+  return `audio/${word.id}-${voice}.mp3`;
+}
+
+/** The word's recording in this voice, if there is one. */
+export function recordingOf(deck: Deck, word: Word, voice: string): Recording | undefined {
+  const path = audioPath(word, voice);
+  const measured = deck.recordings[path];
+  return measured && { url: `${path}?v=${measured.v}`, timing: measured.t, track: measured.p };
 }
 
 export function wordsInScope(deck: Deck, scope: string): Word[] {
@@ -79,4 +124,9 @@ export function siblings(deck: Deck, word: Word): Word[] {
 export function recorded(deck: Deck, word: Word): Word[] {
   const family = deck.families.find((f) => f.key === word.family);
   return [...siblings(deck, word), ...(family?.contrasts ?? [])];
+}
+
+/** The words of `recorded` that have a recording in this voice. */
+export function recordedIn(deck: Deck, word: Word, voice: string): Word[] {
+  return recorded(deck, word).filter((w) => recordingOf(deck, w, voice) !== undefined);
 }

@@ -38,13 +38,9 @@ def filename(word: Word, voice: Voice) -> str:
     return f"{word.id}-{voice.key}.mp3"
 
 
-def url(word: Word, voice: Voice, directory: Path) -> str:
-    """Site path of a recording, versioned by its content so a re-recorded clip is fetched again."""
-    name = filename(word, voice)
-    path = directory / name
-    if not path.exists():
-        return f"audio/{name}"
-    return f"audio/{name}?v={hashlib.sha1(path.read_bytes()).hexdigest()[:8]}"
+def version(path: Path) -> str:
+    """A digest of a recording's content, added to its URL so a re-recorded clip is fetched anew."""
+    return hashlib.sha1(path.read_bytes()).hexdigest()[:8]
 
 
 async def _synthesize(text: str, voice: Voice, path: Path, gate: asyncio.Semaphore) -> None:

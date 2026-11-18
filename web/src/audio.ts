@@ -96,9 +96,18 @@ function finishClip(): void {
   );
 }
 
+const url = (path: string) => new URL(`${import.meta.env.BASE_URL}${path}`, location.href).href;
+
 async function start(run: number): Promise<PlayResult> {
   const clip = sequence[index]!;
-  player.src = `${import.meta.env.BASE_URL}${clip.path}`;
+  if (player.src === url(clip.path)) {
+    // Assigning the same source again makes Safari load and decode the file anew, a delay
+    // heard on every replay; rewinding reuses what is loaded. Clips always start at 0:
+    // Safari's seeking within an MP3 is imprecise, and can land in the second syllable.
+    player.currentTime = 0;
+  } else {
+    player.src = url(clip.path);
+  }
   try {
     await player.play();
   } catch (error) {
@@ -131,4 +140,17 @@ export function playSequence(clips: Clip[], options: { loop?: boolean } = {}): P
 
 export function play(clip: Clip): Promise<PlayResult> {
   return playSequence([clip]);
+}
+
+/**
+ * Fetch recordings that may be played soon, so they start without a network delay. The
+ * service worker saves each one as it arrives. A failure only means the clip loads when played.
+ */
+export function prefetch(paths: Iterable<string>): void {
+  for (const path of new Set(paths)) {
+    fetch(url(path)).catch((error: unknown) => {
+      // fetch rejects with a TypeError when the network is unreachable.
+      if (!(error instanceof TypeError)) throw error;
+    });
+  }
 }
