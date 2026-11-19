@@ -211,7 +211,9 @@ export function Drill({
   // Keyboard shortcuts for desktop: 1-5 answer, space replays, enter goes on.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!prompt) return;
+      // While a dialog (help) is open the drill behind it is inert, and so are its shortcuts:
+      // keys typed in the dialog still reach the window.
+      if (!prompt || e.defaultPrevented || document.querySelector("dialog[open]")) return;
       if (e.key === " ") {
         e.preventDefault();
         hear(prompt.word);
