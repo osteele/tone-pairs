@@ -37,3 +37,7 @@ build:
 # Build and publish to https://tone-pairs.pages.dev
 deploy: build
     wrangler pages deploy dist --project-name tone-pairs --branch main --commit-dirty=true
+
+# Render the link preview image from its SVG
+og-image:
+    rsvg-convert web/og-image.svg -o web/public/og-image.png

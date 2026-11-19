@@ -16,6 +16,8 @@ Cloudflare.
 - `just check`: lint, typecheck, and tests for the pipeline and the app
 - `just data`: rebuild the word list and recordings
 - `just deploy`: build and deploy
+- `just og-image`: render the link preview image, `web/public/og-image.png`,
+  from `web/og-image.svg` (needs `rsvg-convert`, from librsvg)
 
 ## Data
 

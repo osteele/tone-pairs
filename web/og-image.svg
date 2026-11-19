@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- The link preview image (og-image.png, rendered by `just og-image`): the app icon's staff
+       beside the name and a one-line description. -->
+  <rect width="1200" height="630" fill="#fafaf9"/>
+  <clipPath id="tile"><rect x="80" y="115" width="400" height="400" rx="88"/></clipPath>
+  <g clip-path="url(#tile)">
+    <g transform="translate(80 115) scale(4)">
+      <rect width="100" height="100" fill="#f1f5f9"/>
+      <rect width="8" height="100" fill="#334155"/>
+      <g stroke="#cbd5e1" stroke-width="1.8">
+        <path d="M18 28 H92"/><path d="M18 46 H92"/><path d="M18 64 H92"/><path d="M18 82 H92"/>
+      </g>
+      <path d="M44 28 L54 64" stroke="#a8a29e" stroke-width="4.5" stroke-dasharray="1 7" stroke-linecap="round"/>
+      <path d="M22 28 H44" stroke="#dc2626" stroke-width="10" stroke-linecap="round"/>
+      <path d="M54 64 C72 64 76 28 90 28" fill="none" stroke="#ea8c00" stroke-width="10" stroke-linecap="round"/>
+    </g>
+  </g>
+  <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+    <text x="550" y="270" font-size="84" font-weight="700" fill="#1c1917">Tone Pairs</text>
+    <text font-size="36" fill="#57534e">
+      <tspan x="552" y="345">A listening drill for the tones</tspan>
+      <tspan x="552" y="393">of two-syllable Mandarin words</tspan>
+    </text>
+    <text x="552" y="470" font-size="30" fill="#0d9488">tone-pairs.pages.dev</text>
+  </g>
+</svg>

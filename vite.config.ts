@@ -51,6 +51,8 @@ export default defineConfig({
         // small core has downloaded. The page saves the recordings into the audio cache in
         // the background (web/src/offline.ts).
         globPatterns: ["**/*.{js,css,html,png,svg,json}"],
+        // Only link previews fetch it; the app never shows it.
+        globIgnores: ["og-image.png"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
           {
