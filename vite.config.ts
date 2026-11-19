@@ -35,7 +35,7 @@ export default defineConfig({
       includeAssets: ["apple-touch-icon.png", "favicon.svg"],
       manifest: {
         name: "Tone Pairs",
-        short_name: "Tones",
+        short_name: "Tone Pairs",
         description: "Listening drill for the tones of two-syllable Mandarin words",
         display: "standalone",
         orientation: "portrait",
