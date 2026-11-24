@@ -323,3 +323,21 @@ def test_build_makes_trimmed_and_repitched_recordings_and_reuses_measurements(
     mtimes = {p.name: p.stat().st_mtime_ns for p in audio.iterdir()}
     assert recordings.build([source, made], speech, audio, cache, progress=lambda _: None) == first
     assert {p.name: p.stat().st_mtime_ns for p in audio.iterdir()} == mtimes
+
+
+def test_build_keeps_existing_recordings_when_the_speech_cache_is_empty(tmp_path, two_syllables):
+    # The CLI deletes served recordings missing from the manifest, so a build without speech
+    # must still list the recordings that exist.
+    source = _word("时间", (2, 1))
+    voice = tts.VOICES[0]
+    speech, audio, cache = tmp_path / "speech", tmp_path / "audio", tmp_path / "measured.json"
+    speech.mkdir()
+    two_syllables(speech / tts.speech_filename(source, voice))
+    first = recordings.build([source], speech, audio, cache, progress=lambda _: None)
+    for path in speech.iterdir():
+        path.unlink()
+    cache.unlink()
+
+    again = recordings.build([source], speech, audio, cache, progress=lambda _: None)
+    assert set(again) == set(first)
+    assert (audio / tts.filename(source, voice)).exists()

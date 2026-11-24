@@ -66,10 +66,16 @@ def build(
             for w in words
             if w.source is None and (path := speech / tts.speech_filename(w, voice)).exists()
         )
-        if not spoken:
-            progress(f"{voice.key}: no synthesized speech")
+        # Without speech (a cleared cache), the served recordings are still measured and kept;
+        # the voice's range is then taken from them. Speech is needed only to make a recording.
+        served = sorted(path for w in words if (path := audio / tts.filename(w, voice)).exists())
+        sources = spoken or served
+        if not sources:
+            progress(f"{voice.key}: no synthesized speech and no recordings")
             continue
-        sample = random.Random(voice.key).sample(spoken, min(_RANGE_SAMPLE, len(spoken)))
+        if not spoken:
+            progress(f"{voice.key}: no synthesized speech; measuring the existing recordings")
+        sample = random.Random(voice.key).sample(sources, min(_RANGE_SAMPLE, len(sources)))
         span = resynthesis.voice_range((sound.trim(sound.decode(p)) for p in sample), voice)
         made = 0
         trimmed: dict[str, parselmouth.Sound | None] = {}
