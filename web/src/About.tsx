@@ -59,8 +59,8 @@ export function About() {
         </div>
       </div>
       <p>
-        A listening drill for the tones of two-syllable Mandarin words. Each word is played and you
-        name its two tones; spaced repetition brings the words you miss back sooner.
+        A listening drill for the tones of two-syllable Mandarin words. You hear a word and name its
+        two tones. Spaced repetition brings back the words you miss sooner.
       </p>
       <h3 className="font-semibold">Credits</h3>
       <ul className="flex flex-col gap-2">

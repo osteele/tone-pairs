@@ -25,7 +25,11 @@ synthesizer given them might say either.
 ## Recordings
 
 Every word is synthesized in four voices, two women and two men, so the drill
-does not train one speaker's pitch range.
+does not train one speaker's pitch range. The voices say some tones differently.
+Measured in the recordings, a first tone at the end of a word holds level or
+rises a semitone or two in the women's voices (Xiaoxiao, Xiaoyi), and in the
+men's often sags two to five semitones (Yunjian more than Yunxi). The readers
+in the workbook's own audio mostly hold it level.
 
 An answer usually names a tone pattern that no drill word has, and the feedback
 should still be able to play it. So each family also has a recording of every
@@ -53,7 +57,7 @@ another syllable, rather than the full 214 of a third tone said alone. A neutral
 tone is a short pitch set by the tone before it. A dotted line joins the two
 syllables, showing how the pitch moves from one into the next.
 
-The thin dark line, drawn over the contour, is the pitch measured in the
+The thin line, drawn over the contour in a deeper shade of each tone's color, is the pitch measured in the
 recording with Praat, mapped onto the same scale: each voice's 5th and 95th percentile pitch, over a sample of its
 recordings, are levels 1 and 5. The measured line is often flatter than the
 textbook one, and differs from it in ways worth hearing: before another

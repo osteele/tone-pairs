@@ -49,9 +49,9 @@ on the pitch graphs: first tone red, second orange, third green, fourth blue,
 neutral gray, as in the Pleco and MDBG dictionaries.
 
 After you answer, a staff shows the word played on a five-level pitch scale.
-The thick line is the textbook shape of its tones; the thin dark line over it
-is the pitch measured in the recording itself, which is often flatter. The thin
-line breaks where there is no pitch to measure, such as the hiss of s, sh, or f.
+The thick line is the textbook shape of its tones. The thin line over it, in a
+deeper shade, is the pitch measured in the recording itself, which is often
+flatter. It breaks where there is no pitch to measure, such as the hiss of s, sh, or f.
 A dot follows the line as the recording plays. Tap a staff to hear it again,
 and tap a word's characters to copy them. *Say it* records you saying the word
 and draws your pitch on the staff, scaled to your own voice, so you can compare
