@@ -73,6 +73,47 @@ export interface Voice {
   label: string;
 }
 
+/** The least room the staff leaves above level 5 for measured pitch. */
+export const MIN_HEADROOM = 5.5;
+/** The most: anything higher is clipped. */
+const MAX_HEADROOM = 9;
+
+/**
+ * The level the voice's measured pitch reaches in all but the highest 1% of its recordings,
+ * rounded up to a half level. Level 5 is set by the voice's first tones and the start of its
+ * fourth tones, and some voices start a fourth tone well above it.
+ */
+export function voiceHeadroom(recordings: Record<string, Measured>, voice: string): number {
+  const suffix = `-${voice}.m4a`;
+  const peaks: number[] = [];
+  for (const [path, measured] of Object.entries(recordings)) {
+    if (!path.endsWith(suffix)) continue;
+    const points = measured.p.flat().filter((p) => p !== null);
+    if (points.length) peaks.push(Math.max(...points) / 10);
+  }
+  if (!peaks.length) return MIN_HEADROOM;
+  peaks.sort((a, b) => a - b);
+  const high = peaks[Math.floor(0.99 * (peaks.length - 1))]!;
+  return Math.min(Math.max(Math.ceil(high * 2) / 2, MIN_HEADROOM), MAX_HEADROOM);
+}
+
+const headrooms = new WeakMap<Record<string, Measured>, Map<string, number>>();
+
+/** voiceHeadroom over the deck's recordings, computed once per voice. */
+export function headroomOf(deck: Deck, voice: string): number {
+  let known = headrooms.get(deck.recordings);
+  if (!known) {
+    known = new Map();
+    headrooms.set(deck.recordings, known);
+  }
+  let headroom = known.get(voice);
+  if (headroom === undefined) {
+    headroom = voiceHeadroom(deck.recordings, voice);
+    known.set(voice, headroom);
+  }
+  return headroom;
+}
+
 export interface Deck {
   exercises: Exercise[];
   voices: Voice[];

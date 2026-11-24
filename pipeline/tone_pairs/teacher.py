@@ -17,6 +17,7 @@ import json
 import math
 import os
 import re
+import statistics
 import subprocess
 import sys
 import urllib.request
@@ -24,7 +25,7 @@ from pathlib import Path
 
 import parselmouth
 
-from . import resynthesis, sound, timing
+from . import sound, timing
 from .cli import CACHE, PUBLIC, TRANSCRIPTS_VAR
 
 AUDIO_VAR = "TONE_PAIRS_WORKBOOK_AUDIO"
@@ -118,18 +119,38 @@ def transcribe(clip: Path, options: list[str]) -> str:
         return json.load(response)["choices"][0]["message"]["content"].strip()
 
 
+# Levels 1 and 5, in typical spreads below and above a voice's typical pitch: the rule the four
+# synthesized voices follow, and the one Say it scales a listener by (web/src/speaker.ts).
+_LEVEL_1_SPREADS = 0.78
+_LEVEL_5_SPREADS = 0.47
+
+
 def reader_span(sounds: list[parselmouth.Sound]) -> tuple[float, float]:
-    """The reader's pitch range, as resynthesis.voice_range finds a synthesized voice's."""
-    semitones = sorted(
-        12 * math.log2(f / 100)
-        for s in sounds
-        for f in s.to_pitch_ac(
-            time_step=0.01, pitch_floor=FLOOR, pitch_ceiling=CEILING
-        ).selected_array["frequency"]
-        if f > 0
-    )
-    low, high = (semitones[len(semitones) * p // 100] for p in resynthesis._RANGE_PERCENTILES)
-    return low, high
+    """The reader's pitch at levels 1 and 5, in semitones above 100 Hz.
+
+    The tones the reader says are what the comparison is for, so the scale cannot be set by them
+    as resynthesis.voice_range sets a synthesized voice's. It is set as Say it sets a listener's:
+    from the median of the clips' median pitches and the median of their 10th-to-90th-percentile
+    spreads.
+    """
+    medians: list[float] = []
+    spreads: list[float] = []
+    for s in sounds:
+        semitones = sorted(
+            12 * math.log2(f / 100)
+            for f in s.to_pitch_ac(
+                time_step=0.01, pitch_floor=FLOOR, pitch_ceiling=CEILING
+            ).selected_array["frequency"]
+            if f > 0
+        )
+        if len(semitones) < 8:
+            continue
+        medians.append(statistics.median(semitones))
+        spreads.append(semitones[len(semitones) * 9 // 10] - semitones[len(semitones) // 10])
+    if not medians:
+        raise ValueError("no voiced clips to measure the reader's range from")
+    center, spread = statistics.median(medians), statistics.median(spreads)
+    return center - _LEVEL_1_SPREADS * spread, center + _LEVEL_5_SPREADS * spread
 
 
 def main() -> None:

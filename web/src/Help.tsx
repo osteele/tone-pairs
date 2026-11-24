@@ -64,7 +64,8 @@ const SECTIONS: Record<HelpTopic, { title: string; body: ReactNode }> = {
         <p>
           Each staff is the pitch scale, 1 low to 5 high. The thick line is the textbook shape of
           the tones. The thin line over it, in a deeper shade, is the pitch measured in the
-          recording. It breaks where there is no pitch to measure: voiceless consonants such as s,
+          recording, scaled to the voice: its first tones sit near 5 and the bottoms of its third
+          tones at 1. It breaks where there is no pitch to measure: voiceless consonants such as s,
           sh, x, f, h, and p are made without voice. A dot follows the word as it plays.
         </p>
         <p>

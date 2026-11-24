@@ -1,3 +1,4 @@
+import json
 import math
 
 import pytest
@@ -277,6 +278,10 @@ def test_track_measures_each_syllable_on_the_five_level_scale(tmp_path, two_syll
     # A wider assumed range puts the same pitch lower on the scale.
     _, wider = timing.track(heard, voice.pitch_floor, voice.pitch_ceiling, bounds, (10.0, 30.0))
     assert max(v for v in wider if v is not None) / 10 < max(voiced)
+    # Pitch an octave or so above the range is a tracking error, and is dropped: 300 Hz is 11
+    # semitones above a range that tops out at 8.
+    _, beyond = timing.track(heard, voice.pitch_floor, voice.pitch_ceiling, bounds, (0.0, 8.0))
+    assert all(v is None for v in beyond)
 
 
 def test_trim_keeps_a_few_hundredths_before_the_first_sound(tmp_path, two_syllables):
@@ -301,46 +306,135 @@ def test_encoding_preserves_the_timeline(tmp_path, two_syllables):
     assert sound.onset(heard) == pytest.approx(sound.onset(trimmed), abs=0.006)
 
 
+def _spoken_words(speech, voice, two_syllables):
+    """Words said 3-1 and 4-1, each with the synthetic recording as its speech in ``voice``:
+    enough first, third, and fourth tones for resynthesis.voice_range to measure."""
+    words = [_word(hanzi, (3, 1)) for hanzi in ("五天", "很多", "老师", "北京", "好吃", "雨天")]
+    words += [_word(hanzi, (4, 1)) for hanzi in ("四天", "看书", "大家", "上班", "汽车")]
+    for word in words:
+        two_syllables(speech / tts.speech_filename(word, voice))
+    return words
+
+
+def test_voice_range_sets_level_5_from_first_and_fourth_tones_and_level_1_from_thirds(
+    tmp_path, two_syllables
+):
+    voice = tts.VOICES[0]
+    heard = sound.decode(two_syllables(tmp_path / "clip.mp3"))
+    # The first syllable rises from 150 Hz: read as a third tone, its lowest point is level 1;
+    # read as a fourth tone, its first few points are where the tone starts. The second syllable
+    # holds 300 Hz, a first tone.
+    bounds = timing.measure(heard, voice.pitch_floor, voice.pitch_ceiling)
+    rising, _ = timing.syllable_pitches(heard, voice.pitch_floor, voice.pitch_ceiling, bounds)
+    start = max([p for p in rising if p is not None][:4])
+    level = 12 * math.log2(3.0)
+    low, high = resynthesis.voice_range([(heard, (3, 1))] * 5 + [(heard, (4, 1))] * 5, voice)
+    assert low == pytest.approx(12 * math.log2(1.5), abs=0.7)
+    assert high == pytest.approx((level + start) / 2, abs=0.3)
+    assert start < high < level - 3
+    # Without fourth tones there is no range.
+    with pytest.raises(ValueError, match="fourth tones"):
+        resynthesis.voice_range([(heard, (3, 1))] * 5, voice)
+
+
 def test_build_makes_trimmed_and_repitched_recordings_and_reuses_measurements(
     tmp_path, two_syllables
 ):
-    source = _word("时间", (2, 1))
-    family = Family(syllables=("shi", "jian"), words=[source])
-    made = next(p for p in resynthesis.plan([family]) if p.pattern == (2, 4)).word
     voice = tts.VOICES[0]
     speech, audio, cache = tmp_path / "speech", tmp_path / "audio", tmp_path / "measured.json"
     speech.mkdir()
-    two_syllables(speech / tts.speech_filename(source, voice))
+    sources = _spoken_words(speech, voice, two_syllables)
+    family = Family(syllables=("shi", "jian"), words=sources[:1])
+    made = next(p for p in resynthesis.plan([family]) if p.pattern == (2, 4)).word
+    words = [*sources, made]
 
-    first = recordings.build([source, made], speech, audio, cache, progress=lambda _: None)
-    assert set(first) == {f"audio/{tts.filename(w, voice)}" for w in (source, made)}
+    first = recordings.build(words, speech, audio, cache, progress=lambda _: None)
+    assert set(first) == {f"audio/{tts.filename(w, voice)}" for w in words}
     for entry in first.values():
         assert len(entry["t"]) == 3 and len(entry["p"]) == 2
-    served = sound.decode(audio / tts.filename(source, voice))
+    served = sound.decode(audio / tts.filename(sources[0], voice))
     assert sound.onset(served) < 0.04
 
     # A second run makes nothing new and reads its measurements from the cache.
     mtimes = {p.name: p.stat().st_mtime_ns for p in audio.iterdir()}
-    assert recordings.build([source, made], speech, audio, cache, progress=lambda _: None) == first
+    assert recordings.build(words, speech, audio, cache, progress=lambda _: None) == first
     assert {p.name: p.stat().st_mtime_ns for p in audio.iterdir()} == mtimes
+
+    # When the voice's range moves, the re-pitched recording is made again, and only it.
+    spans = cache.with_name("repitched-spans.json")
+    spans.write_text(json.dumps({voice.key: [0.0, 30.0]}))
+    recordings.build(words, speech, audio, cache, progress=lambda _: None)
+    changed = {p.name for p in audio.iterdir() if p.stat().st_mtime_ns != mtimes[p.name]}
+    assert changed == {tts.filename(made, voice)}
+    assert json.loads(spans.read_text())[voice.key] != [0.0, 30.0]
+
+
+def test_build_remakes_a_repitched_recording_kept_while_its_source_speech_was_missing(
+    tmp_path, two_syllables
+):
+    voice = tts.VOICES[0]
+    speech, audio, cache = tmp_path / "speech", tmp_path / "audio", tmp_path / "measured.json"
+    speech.mkdir()
+    sources = _spoken_words(speech, voice, two_syllables)
+    family = Family(syllables=("shi", "jian"), words=sources[:1])
+    made = next(p for p in resynthesis.plan([family]) if p.pattern == (2, 4)).word
+    words = [*sources, made]
+    recordings.build(words, speech, audio, cache, progress=lambda _: None)
+    spans = cache.with_name("repitched-spans.json")
+    out = audio / tts.filename(made, voice)
+
+    # The range moves while the source's speech is missing: the recording cannot be remade, and
+    # the range it was made with stays recorded.
+    spans.write_text(json.dumps({voice.key: [0.0, 30.0]}))
+    source_speech = speech / tts.speech_filename(sources[0], voice)
+    kept = source_speech.read_bytes()
+    source_speech.unlink()
+    before = out.stat().st_mtime_ns
+    recordings.build(words, speech, audio, cache, progress=lambda _: None)
+    assert out.stat().st_mtime_ns == before
+    assert json.loads(spans.read_text())[voice.key] == [0.0, 30.0]
+
+    # With the speech back, the recording is made again.
+    source_speech.write_bytes(kept)
+    recordings.build(words, speech, audio, cache, progress=lambda _: None)
+    assert out.stat().st_mtime_ns != before
+    assert json.loads(spans.read_text())[voice.key] != [0.0, 30.0]
+
+
+def test_reader_span_scales_a_reader_by_their_typical_pitch_and_spread(tmp_path, two_syllables):
+    heard = sound.decode(two_syllables(tmp_path / "clip.mp3"))
+    low, high = teacher.reader_span([heard] * 3)
+    semitones = sorted(
+        12 * math.log2(f / 100)
+        for f in heard.to_pitch_ac(
+            time_step=0.01, pitch_floor=teacher.FLOOR, pitch_ceiling=teacher.CEILING
+        ).selected_array["frequency"]
+        if f > 0
+    )
+    median = semitones[len(semitones) // 2]
+    spread = semitones[len(semitones) * 9 // 10] - semitones[len(semitones) // 10]
+    # Levels 1 and 5 lie about the median pitch, level 1 further below it than level 5 above.
+    assert low == pytest.approx(median - 0.78 * spread, abs=0.3)
+    assert high == pytest.approx(median + 0.47 * spread, abs=0.3)
+    with pytest.raises(ValueError):
+        teacher.reader_span([])
 
 
 def test_build_keeps_existing_recordings_when_the_speech_cache_is_empty(tmp_path, two_syllables):
     # The CLI deletes served recordings missing from the manifest, so a build without speech
     # must still list the recordings that exist.
-    source = _word("时间", (2, 1))
     voice = tts.VOICES[0]
     speech, audio, cache = tmp_path / "speech", tmp_path / "audio", tmp_path / "measured.json"
     speech.mkdir()
-    two_syllables(speech / tts.speech_filename(source, voice))
-    first = recordings.build([source], speech, audio, cache, progress=lambda _: None)
+    words = _spoken_words(speech, voice, two_syllables)
+    first = recordings.build(words, speech, audio, cache, progress=lambda _: None)
     for path in speech.iterdir():
         path.unlink()
     cache.unlink()
 
-    again = recordings.build([source], speech, audio, cache, progress=lambda _: None)
+    again = recordings.build(words, speech, audio, cache, progress=lambda _: None)
     assert set(again) == set(first)
-    assert (audio / tts.filename(source, voice)).exists()
+    assert all((audio / tts.filename(w, voice)).exists() for w in words)
 
 
 def test_track_drops_a_point_read_an_octave_off():

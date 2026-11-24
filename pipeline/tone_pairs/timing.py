@@ -71,6 +71,27 @@ def measure(sound: parselmouth.Sound, pitch_floor: float, pitch_ceiling: float) 
     return Timing(round(start, 3), round(split, 3), round(end, 3))
 
 
+def syllable_pitches(
+    sound: parselmouth.Sound, pitch_floor: float, pitch_ceiling: float, bounds: Timing
+) -> list[list[float | None]]:
+    """Measured pitch at evenly spaced points through each syllable, in semitones above 100 Hz,
+    without octave-jump errors (drop_octave_jumps). Unvoiced points are None."""
+    pitch = sound.to_pitch_ac(
+        time_step=_STEP,
+        pitch_floor=pitch_floor,
+        pitch_ceiling=pitch_ceiling,
+        voicing_threshold=_VOICING_THRESHOLD,
+    )
+    syllables: list[list[float | None]] = []
+    for start, end in ((bounds.start, bounds.split), (bounds.split, bounds.end)):
+        semitones: list[float | None] = []
+        for k in range(_TRACK_POINTS):
+            hertz = pitch.get_value_at_time(start + (k + 0.5) / _TRACK_POINTS * (end - start))
+            semitones.append(None if math.isnan(hertz) else 12 * math.log2(hertz / 100))
+        syllables.append(drop_octave_jumps(semitones))
+    return syllables
+
+
 def track(
     sound: parselmouth.Sound,
     pitch_floor: float,
@@ -81,29 +102,22 @@ def track(
     """Measured pitch at evenly spaced points through each syllable, in tenths of a level on
     the five-level scale (35 is level 3.5): finer than the staff can show, and compact as JSON.
 
-    ``span`` gives the voice's low and high pitch, in semitones above 100 Hz, as levels 1 and 5
-    (resynthesis.voice_range). Unvoiced points are None.
+    ``span`` gives the voice's pitch at levels 1 and 5, in semitones above 100 Hz
+    (resynthesis.voice_range). Unvoiced points are None, and so are points _OCTAVE_JUMP or more
+    beyond either end of the range: a run read an octave off, at the end of a syllable, can be
+    as long as the run it follows, so drop_octave_jumps cannot tell which to keep, but speech
+    stays within a few semitones of the voice's range.
     """
-    pitch = sound.to_pitch_ac(
-        time_step=_STEP,
-        pitch_floor=pitch_floor,
-        pitch_ceiling=pitch_ceiling,
-        voicing_threshold=_VOICING_THRESHOLD,
-    )
     low, high = span
-    syllables: list[list[int | None]] = []
-    for start, end in ((bounds.start, bounds.split), (bounds.split, bounds.end)):
-        semitones: list[float | None] = []
-        for k in range(_TRACK_POINTS):
-            hertz = pitch.get_value_at_time(start + (k + 0.5) / _TRACK_POINTS * (end - start))
-            semitones.append(None if math.isnan(hertz) else 12 * math.log2(hertz / 100))
-        syllables.append(
-            [
-                None if s is None else round(10 * (1 + 4 * (s - low) / (high - low)))
-                for s in drop_octave_jumps(semitones)
-            ]
-        )
-    return syllables
+    return [
+        [
+            None
+            if s is None or not low - _OCTAVE_JUMP < s < high + _OCTAVE_JUMP
+            else round(10 * (1 + 4 * (s - low) / (high - low)))
+            for s in points
+        ]
+        for points in syllable_pitches(sound, pitch_floor, pitch_ceiling, bounds)
+    ]
 
 
 def drop_octave_jumps(points: list[float | None]) -> list[float | None]:

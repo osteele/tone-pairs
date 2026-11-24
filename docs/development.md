@@ -86,7 +86,9 @@ TONE_PAIRS_WORKBOOK_AUDIO=/path/to/workbook/audio
 ```
 
 It cuts each tone-marking item's readings out of the lesson's second audio file
-and measures them as the recordings are measured. It asks an audio model, through
+and measures them as the recordings are measured. The reader's levels are set as
+Say it sets a listener's, from their typical pitch and spread, since the tones
+the reader says are what the comparison checks. It asks an audio model, through
 OpenRouter (`OPENROUTER_API_KEY`), which printed option each item reads, since
 the options can sound alike, and caches the answers. Everything it writes stays
 in `.cache/teacher`.

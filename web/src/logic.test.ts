@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { levelAt, patternLevels, placeAt, syllableWeights } from "./contour";
 import type { Tone, Word } from "./deck";
-import { audioPath, drillWords, wordFor } from "./deck";
+import { audioPath, drillWords, MIN_HEADROOM, voiceHeadroom, wordFor } from "./deck";
 import { acceptedAnswers, isCorrect, spokenForm, wordForAnswer } from "./grading";
 import { markSyllable } from "./pinyin";
 import { createScheduler, emptyProgress, migrateIds, parseProgress, record } from "./progress";
@@ -379,5 +379,26 @@ describe("next voice", () => {
 
   test("moves off a flagged current voice", () => {
     expect(nextVoice(recorded(["a", "b"]), w, "a", ["w:a"])).toBe("b");
+  });
+});
+
+describe("voiceHeadroom", () => {
+  const measured = (peak: number) => ({
+    v: "0",
+    t: [0, 0.2, 0.4] as [number, number, number],
+    p: [[30, null, peak], [20]],
+  });
+  const recordings = (voice: string, peaks: number[]) =>
+    Object.fromEntries(peaks.map((peak, i) => [`audio/w${i}-${voice}.m4a`, measured(peak)]));
+
+  test("fits all but the highest 1% of the voice's peaks, rounded up to a half level", () => {
+    const peaks = [...Array(98).fill(52), 71, 120];
+    expect(voiceHeadroom(recordings("low", peaks), "low")).toBe(7.5);
+  });
+
+  test("leaves the least room for a voice that stays below it, and ignores other voices", () => {
+    const all = { ...recordings("high", [50, 52]), ...recordings("low", [80, 85]) };
+    expect(voiceHeadroom(all, "high")).toBe(MIN_HEADROOM);
+    expect(voiceHeadroom(all, "none")).toBe(MIN_HEADROOM);
   });
 });

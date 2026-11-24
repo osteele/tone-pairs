@@ -58,8 +58,16 @@ tone is a short pitch set by the tone before it. A dotted line joins the two
 syllables, showing how the pitch moves from one into the next.
 
 The thin line, drawn over the contour in a deeper shade of each tone's color, is the pitch measured in the
-recording with Praat, mapped onto the same scale: each voice's 5th and 95th percentile pitch, over a sample of its
-recordings, are levels 1 and 5. The measured line is often flatter than the
+recording with Praat, mapped onto the same scale by each voice's own tones. Over a
+sample of its recordings, level 1 is the median low point of its third tones,
+and level 5 is midway between the median pitch of its first tones and the median
+start of its fourth tones. The scale starts a fourth tone where a first tone
+holds, but speakers often start it higher: the two women here by a fraction of a
+semitone, the two men by three or more. The staff extends above level 5 as far
+as the voice's measured pitch reaches in all but its highest 1% of recordings,
+so the men's staves are taller. Points an octave or so outside the voice's
+range are pitch-tracking errors and are left out.
+The measured line is often flatter than the
 textbook one, and differs from it in ways worth hearing: before another
 syllable, a second tone may rise only a little, and a final third tone may fall
 rather than dip. It breaks wherever the recording has no pitch: voiceless

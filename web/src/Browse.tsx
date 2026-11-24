@@ -2,7 +2,7 @@ import { useState } from "react";
 import { FaArrowLeft } from "react-icons/fa6";
 import { play } from "./audio";
 import type { Deck, Family, PitchTrack, Tone, Word } from "./deck";
-import { ALL, recorded, recordingOf, wordFor } from "./deck";
+import { ALL, headroomOf, recorded, recordingOf, wordFor } from "./deck";
 import { HelpButton } from "./Help";
 import { markSyllable } from "./pinyin";
 import { SayIt } from "./SayIt";
@@ -184,6 +184,7 @@ function FamilyGrid({ deck, family }: { deck: Deck; family: Family }) {
                 track: recording?.track,
                 mine: mine ?? undefined,
               }}
+              headroom={headroomOf(deck, voice)}
             />
           </button>
           <SayIt key={selected.id} timing={recording?.timing} onTrack={setMine} />

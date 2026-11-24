@@ -15,7 +15,7 @@ import {
 } from "react-icons/fa6";
 import { play, playSequence, prefetch, stop } from "./audio";
 import type { Deck, Pattern, PitchTrack, Tone, Word } from "./deck";
-import { recordedIn, recordingOf, siblings } from "./deck";
+import { headroomOf, recordedIn, recordingOf, siblings } from "./deck";
 import { isCorrect, spokenForm, wordForAnswer } from "./grading";
 import { HelpButton } from "./Help";
 import { whileLoading } from "./loading";
@@ -602,6 +602,7 @@ function Feedback({
           caption={`Played · ${word.pinyin}`}
           who="played"
           line={played}
+          headroom={headroomOf(deck, voice)}
           onPlay={playedClip ? tapped(() => void play(playedClip)) : undefined}
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -624,6 +625,7 @@ function Feedback({
         {compared && (
           <Staff
             who={picked ? "other" : "answered"}
+            headroom={headroomOf(deck, voice)}
             onPlay={comparisonClip ? tapped(() => void play(comparisonClip)) : undefined}
             caption={
               picked
@@ -755,11 +757,13 @@ function Staff({
   caption,
   who,
   line,
+  headroom,
   onPlay,
 }: {
   caption: string;
   who: Role;
   line: GraphLine;
+  headroom: number;
   onPlay: (() => void) | undefined;
 }) {
   const Icon = ROLE_ICONS[who];
@@ -778,7 +782,7 @@ function Staff({
       >
         <Icon size={11} /> {caption}
       </span>
-      <ToneGraph line={line} />
+      <ToneGraph line={line} headroom={headroom} />
     </button>
   );
 }

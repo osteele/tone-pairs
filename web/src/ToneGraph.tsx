@@ -1,5 +1,6 @@
 import { levelAt, patternLevels, placeAt, syllableWeights } from "./contour";
 import type { Pattern, PitchTrack, Timing, Tone } from "./deck";
+import { MIN_HEADROOM } from "./deck";
 import { MINE_COLOR, TONE_COLORS, TONE_DARK, TONE_PALE } from "./tones";
 import { usePlayback } from "./usePlayback";
 
@@ -17,11 +18,15 @@ export interface GraphLine {
 }
 
 const W = 320;
-const H = 90;
 const LEFT = 18;
 const RIGHT = 8;
-const TOP = 10;
-const BOTTOM = 10;
+/** Height of one level of the five-level scale. */
+const LEVEL = 17.5;
+/** The lowest level measured pitch is drawn to. */
+const FLOOR = 0.5;
+const MARGIN = 2;
+/** The staff, from level FLOOR to MIN_HEADROOM; a voice that reaches higher extends it upward. */
+const H = MARGIN * 2 + (MIN_HEADROOM - FLOOR) * LEVEL;
 const GAP = 18;
 const SAMPLES = 32;
 const STROKE = 6;
@@ -33,7 +38,7 @@ const MINE_STROKE = 2;
 const TRACK_OPACITY = 0.6;
 const JOIN_COLOR = "#a8a29e";
 
-const y = (level: number) => TOP + ((5 - level) / 4) * (H - TOP - BOTTOM);
+const y = (level: number) => MARGIN + (MIN_HEADROOM - level) * LEVEL;
 
 interface Syllable {
   id: string;
@@ -71,7 +76,11 @@ function syllablePath(levels: readonly number[], [x0, width]: [number, number], 
  * SVG path through a syllable's measured pitch, in tenths of a level, broken where the
  * recording is unvoiced.
  */
-function trackPath(points: readonly (number | null)[], [x0, width]: [number, number]): string {
+function trackPath(
+  points: readonly (number | null)[],
+  [x0, width]: [number, number],
+  headroom: number,
+): string {
   let d = "";
   let drawing = false;
   points.forEach((tenths, k) => {
@@ -80,7 +89,7 @@ function trackPath(points: readonly (number | null)[], [x0, width]: [number, num
       return;
     }
     const x = x0 + ((k + 0.5) / points.length) * width;
-    const clamped = Math.min(Math.max(tenths / 10, 0.5), 5.5);
+    const clamped = Math.min(Math.max(tenths / 10, FLOOR), headroom);
     d += `${drawing ? "L" : "M"}${x.toFixed(1)},${y(clamped).toFixed(1)}`;
     drawing = true;
   });
@@ -92,14 +101,25 @@ function trackPath(points: readonly (number | null)[], [x0, width]: [number, num
  * tone's color, with the recording's measured pitch drawn over it in a darker shade and a dot that follows
  * the recording while it plays. The caller says which word the staff shows.
  */
-export function ToneGraph({ line }: { line: GraphLine }) {
+/**
+ * `headroom` is the highest level the voice's measured pitch reaches (voiceHeadroom): the staff
+ * extends above level 5 to fit it.
+ */
+export function ToneGraph({
+  line,
+  headroom = MIN_HEADROOM,
+}: {
+  line: GraphLine;
+  headroom?: number;
+}) {
   const playback = usePlayback();
   const playing = line.path !== undefined && line.path === playback?.clip?.path;
   const parts = syllables(line.key, line.pattern);
+  const above = (Math.max(headroom, MIN_HEADROOM) - MIN_HEADROOM) * LEVEL;
 
   return (
     <svg
-      viewBox={`0 0 ${W} ${H}`}
+      viewBox={`0 ${-above} ${W} ${H + above}`}
       className="w-full"
       role="img"
       aria-label={`${line.label}: ${line.pattern.join("-")}`}
@@ -151,7 +171,7 @@ export function ToneGraph({ line }: { line: GraphLine }) {
       {line.track && (
         <g opacity={TRACK_OPACITY}>
           {parts.flatMap((syllable, i) => {
-            const d = trackPath(line.track?.[i] ?? [], syllable.span);
+            const d = trackPath(line.track?.[i] ?? [], syllable.span, headroom);
             return [
               <path
                 key={`edge:${syllable.id}`}
@@ -178,7 +198,7 @@ export function ToneGraph({ line }: { line: GraphLine }) {
       {/* The listener's pitch, edged in white to stand clear of the lines beneath. */}
       {line.mine &&
         parts.flatMap((syllable, i) => {
-          const d = trackPath(line.mine?.[i] ?? [], syllable.span);
+          const d = trackPath(line.mine?.[i] ?? [], syllable.span, headroom);
           return [
             <path
               key={`mine-edge:${syllable.id}`}

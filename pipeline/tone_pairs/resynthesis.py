@@ -10,6 +10,7 @@ across the voice's measured range.
 """
 
 import math
+import statistics
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
@@ -28,8 +29,11 @@ ANSWERS: tuple[Pattern, ...] = tuple(
 
 _TIME_STEP = 0.01
 _CONTOUR_POINTS = 20
-# Percentiles of a voice's pitch taken as levels 1 and 5 of the five-level scale.
-_RANGE_PERCENTILES = (5, 95)
+# Voiced track points a syllable needs to count toward a voice's range (voice_range); also
+# the points at the start of a fourth tone taken as where it starts.
+_MIN_VOICED = 4
+# First and third tones a voice's range needs to be measured from.
+_MIN_SYLLABLES = 5
 
 
 def syllable_levels(tone: int, previous: int | None, last: bool) -> tuple[float, ...]:
@@ -107,21 +111,46 @@ def plan(families: Iterable[Family]) -> list[Plan]:
     return plans
 
 
-def voice_range(sounds: Iterable[parselmouth.Sound], voice: Voice) -> tuple[float, float]:
-    """Semitones above 100 Hz of the low and high ends of a voice's pitch, over a sample of
-    its recordings."""
-    semitones: list[float] = []
-    for sound in sounds:
-        pitch = sound.to_pitch_ac(
-            time_step=_TIME_STEP, pitch_floor=voice.pitch_floor, pitch_ceiling=voice.pitch_ceiling
+def voice_range(
+    recordings: Iterable[tuple[parselmouth.Sound, Pattern]], voice: Voice
+) -> tuple[float, float]:
+    """Semitones above 100 Hz of levels 1 and 5 of a voice's scale, set by its own tones over a
+    sample of its recordings, each given with the tones it is said with.
+
+    The five-level scale starts a fourth tone where a first tone holds, at 5, but speakers often
+    start a fourth tone higher: the two women here a fraction of a semitone, the two men three
+    or more. Level 5 is midway between the median pitch of the voice's first tones and the
+    median start of its fourth tones, so that both sit near the top of the staff. Level 1 is the
+    median of its third tones' lowest points. Ends set by percentiles of all its pitch would
+    instead put a low voice's first tones near the middle of the staff, below the peaks of its
+    second and fourth tones.
+    """
+    levels: list[float] = []
+    starts: list[float] = []
+    lows: list[float] = []
+    for sound, spoken in recordings:
+        bounds = timing.measure(sound, voice.pitch_floor, voice.pitch_ceiling)
+        syllables = timing.syllable_pitches(sound, voice.pitch_floor, voice.pitch_ceiling, bounds)
+        for tone, points in zip(spoken, syllables, strict=True):
+            voiced = [p for p in points if p is not None]
+            if len(voiced) < _MIN_VOICED:
+                continue
+            match tone:
+                case 1:
+                    levels.append(statistics.median(voiced))
+                case 3:
+                    lows.append(min(voiced))
+                case 4:
+                    starts.append(max(voiced[:_MIN_VOICED]))
+    if min(len(levels), len(starts), len(lows)) < _MIN_SYLLABLES:
+        raise ValueError(
+            f"{voice.key}: {len(levels)} first, {len(lows)} third, and {len(starts)} fourth tones"
+            f" measured in the sample; {_MIN_SYLLABLES} of each are needed"
         )
-        semitones.extend(
-            12 * math.log2(f / 100) for f in pitch.selected_array["frequency"] if f > 0
-        )
-    if not semitones:
-        raise ValueError(f"{voice.key}: no voiced frames in the sample")
-    semitones.sort()
-    low, high = (semitones[len(semitones) * p // 100] for p in _RANGE_PERCENTILES)
+    low = statistics.median(lows)
+    high = (statistics.median(levels) + statistics.median(starts)) / 2
+    if low >= high:
+        raise ValueError(f"{voice.key}: third tones measured no lower than first and fourth tones")
     return low, high
 
 
