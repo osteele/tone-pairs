@@ -12,6 +12,8 @@ import { emptyProgress, localDate } from "./progress";
 import { countScope } from "./queue";
 import type { Mode } from "./session";
 import { newAllowed } from "./session";
+import { fitSpeaker } from "./speaker";
+import { loadSpeaker, onSpeakerChange, startFresh, switchBack } from "./voice";
 
 const MODES: { id: HomeMode; label: string; hint: string }[] = [
   { id: "learn", label: "Learn", hint: "Tap a lesson to review what's due and learn new words." },
@@ -192,6 +194,7 @@ export function Home({ deck, progress, setProgress, onStart, onBrowse, recording
               className="size-5"
             />
           </label>
+          <YourVoice />
           <Flagged progress={progress} setProgress={setProgress} />
           <Reset setProgress={setProgress} />
           {import.meta.env.DEV && (
@@ -266,5 +269,46 @@ function Reset({ setProgress }: Pick<Props, "setProgress">) {
     >
       {armed ? "Tap again to erase all progress" : "Reset progress"}
     </button>
+  );
+}
+
+/** What Say it has learned of the listener's voice, with a way to start over for someone else. */
+function YourVoice() {
+  const [store, setStore] = useState(loadSpeaker);
+  useEffect(() => onSpeakerChange(() => setStore(loadSpeaker())), []);
+  const speaker = fitSpeaker(store.takes);
+  const low = Math.round(speaker.range.lo);
+  const high = Math.round(speaker.range.hi);
+  return (
+    <div className="flex flex-col gap-2 text-sm">
+      <p>
+        <span className="font-medium">Your voice (Say it): </span>
+        {speaker.takes === 0
+          ? "not heard yet."
+          : `${speaker.calibrated ? "learned" : "still learning"} from ${speaker.takes} ${
+              speaker.takes === 1 ? "take" : "takes"
+            }; your staff runs from ${low} to ${high} Hz.`}
+        {store.previous !== null && " The voice before it is kept, in case you switch back."}
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={speaker.takes === 0}
+          onClick={() => startFresh()}
+          className="rounded border border-stone-300 px-3 py-1 disabled:opacity-40"
+        >
+          Start fresh for a new voice
+        </button>
+        {store.previous !== null && (
+          <button
+            type="button"
+            onClick={() => switchBack()}
+            className="rounded border border-stone-300 px-3 py-1"
+          >
+            Switch back
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Frames } from "./voicePitch";
-import { divide, level, pitchFrames, takeRange, takeTrack, voiceRange } from "./voicePitch";
+import { divide, level, pitchFrames, takeTrack } from "./voicePitch";
 
 const RATE = 24000;
 
@@ -70,36 +69,14 @@ describe("the pitch of a take", () => {
 
   test("hears no word in silence", () => {
     const quiet = pitchFrames(silence(1), RATE);
-    expect(takeRange(quiet)).toBeNull();
     expect(takeTrack(quiet, 0.5, { lo: 100, hi: 200 })).toBeNull();
   });
 });
 
 describe("the listener's range", () => {
-  test("is the median of recent takes' ends", () => {
-    const range = voiceRange([
-      { lo: 100, hi: 200 },
-      { lo: 110, hi: 210 },
-      { lo: 300, hi: 400 },
-    ])!;
-    expect(range).toEqual({ lo: 110, hi: 210 });
-  });
-
-  test("is widened when the takes stayed on one pitch", () => {
-    // A word of two first tones: a narrow take must not fill the staff.
-    const range = voiceRange([{ lo: 200, hi: 205 }])!;
-    expect(12 * Math.log2(range.hi / range.lo)).toBeCloseTo(8);
-    expect(level(202, range)).toBeCloseTo(3, 0);
-  });
-
   test("maps its ends to levels 1 and 5", () => {
     const range = { lo: 100, hi: 200 };
     expect(level(100, range)).toBeCloseTo(1);
     expect(level(200, range)).toBeCloseTo(5);
-  });
-
-  test("of a take ignores unvoiced frames", () => {
-    const frames: Frames = { hz: [null, ...Array(20).fill(150), null], rms: Array(22).fill(0.1) };
-    expect(takeRange(frames)).toEqual({ lo: 150, hi: 150 });
   });
 });

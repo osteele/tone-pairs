@@ -76,9 +76,11 @@ const SECTIONS: Record<HelpTopic, { title: string; body: ReactNode }> = {
         </p>
         <p>
           <b>Say it</b> records you saying the word and draws your pitch on its staff, scaled to
-          your own range, which it learns from your takes. <b>Mine</b> plays your take. The
-          recording stays on this device. The voice's name, beside it, plays the word in the next
-          voice and redraws the staves for that voice.
+          your own range, which it learns from your takes. Until it has learned your voice, after
+          about eight takes, your line is dashed. If someone else takes a turn, it offers to start
+          fresh for the new voice; Settings can also start fresh or switch back. <b>Mine</b> plays
+          your take. The recording stays on this device. The voice's name, beside it, plays the word
+          in the next voice and redraws the staves for that voice.
         </p>
         <p>
           "Not a word" marks a made-up word that fills out a family. "Re-pitched" marks a recording

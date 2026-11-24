@@ -1,7 +1,7 @@
 /**
  * The pitch of a take of the listener saying a word, as a track that can be drawn on a staff
- * over the recording's: found every 10 ms, scaled to the listener's own range, and split into
- * the word's two syllables.
+ * over the recording's: found every 10 ms, scaled to the listener's own range (speaker.ts), and
+ * split into the word's two syllables.
  */
 
 import { PitchDetector } from "pitchy";
@@ -15,12 +15,7 @@ const MAX_HZ = 600;
 /** Points per syllable in a drawn track. */
 const POINTS = 24;
 /** A take with fewer voiced frames than this held no word. */
-const MIN_VOICED = 8;
-/**
- * A voice's range is at least this many semitones wide, so a take that stays on one pitch (a
- * word of two first tones) is not stretched across the whole staff.
- */
-const MIN_SPAN_SEMITONES = 8;
+export const MIN_VOICED = 8;
 
 /** Per 10 ms frame: the pitch in Hz, or null where unvoiced, and the loudness. */
 export interface Frames {
@@ -54,38 +49,6 @@ export function pitchFrames(samples: Float32Array, rate: number): Frames {
 }
 
 const semitones = (hz: number) => 12 * Math.log2(hz);
-
-function percentile(sorted: number[], q: number): number {
-  return sorted[Math.round(q * (sorted.length - 1))]!;
-}
-
-/** The range of one take: its 5th and 95th percentile pitch, as for the recordings. */
-export function takeRange(frames: Frames): Range | null {
-  const voiced = frames.hz.filter((h): h is number => h !== null).sort((a, b) => a - b);
-  if (voiced.length < MIN_VOICED) return null;
-  return { lo: percentile(voiced, 0.05), hi: percentile(voiced, 0.95) };
-}
-
-/**
- * The listener's range, from the ranges of their recent takes: the median of each end, widened
- * about its middle to at least MIN_SPAN_SEMITONES.
- */
-export function voiceRange(takes: readonly Range[]): Range | null {
-  if (takes.length === 0) return null;
-  const lo = percentile(
-    takes.map((t) => t.lo).sort((a, b) => a - b),
-    0.5,
-  );
-  const hi = percentile(
-    takes.map((t) => t.hi).sort((a, b) => a - b),
-    0.5,
-  );
-  const span = semitones(hi) - semitones(lo);
-  if (span >= MIN_SPAN_SEMITONES) return { lo, hi };
-  const middle = (semitones(lo) + semitones(hi)) / 2;
-  const half = MIN_SPAN_SEMITONES / 2;
-  return { lo: 2 ** ((middle - half) / 12), hi: 2 ** ((middle + half) / 12) };
-}
 
 /** A pitch's level on the five-level staff, 1 at the range's low end and 5 at its high end. */
 export function level(hz: number, range: Range): number {

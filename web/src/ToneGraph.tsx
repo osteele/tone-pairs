@@ -15,6 +15,8 @@ export interface GraphLine {
   track?: PitchTrack;
   /** The listener's pitch from Say it, drawn over both. */
   mine?: PitchTrack;
+  /** The listener's voice is still being learned, so the height of their line may move. */
+  mineProvisional?: boolean;
 }
 
 const W = 320;
@@ -34,6 +36,7 @@ const STROKE = 6;
 const TRACK_STROKE = 1.5;
 /** The listener's pitch: a little heavier than the recording's, which it is compared with. */
 const MINE_STROKE = 2;
+const MINE_DASH = "5 4";
 /** Light enough that the textbook contour stays the first thing read. */
 const TRACK_OPACITY = 0.6;
 const JOIN_COLOR = "#a8a29e";
@@ -195,10 +198,12 @@ export function ToneGraph({
           })}
         </g>
       )}
-      {/* The listener's pitch, edged in white to stand clear of the lines beneath. */}
+      {/* The listener's pitch, edged in white to stand clear of the lines beneath; dashed
+          while their voice is still being learned. */}
       {line.mine &&
         parts.flatMap((syllable, i) => {
           const d = trackPath(line.mine?.[i] ?? [], syllable.span, headroom);
+          const dash = line.mineProvisional ? MINE_DASH : undefined;
           return [
             <path
               key={`mine-edge:${syllable.id}`}
@@ -208,6 +213,7 @@ export function ToneGraph({
               strokeWidth={MINE_STROKE + 2}
               strokeLinecap="round"
               strokeLinejoin="round"
+              strokeDasharray={dash}
             />,
             <path
               key={`mine:${syllable.id}`}
@@ -217,6 +223,7 @@ export function ToneGraph({
               strokeWidth={MINE_STROKE}
               strokeLinecap="round"
               strokeLinejoin="round"
+              strokeDasharray={dash}
             />,
           ];
         })}

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { FaArrowLeft } from "react-icons/fa6";
 import { play } from "./audio";
-import type { Deck, Family, PitchTrack, Tone, Word } from "./deck";
+import type { Deck, Family, Tone, Word } from "./deck";
 import { ALL, headroomOf, recorded, recordingOf, wordFor } from "./deck";
 import { HelpButton } from "./Help";
 import { markSyllable } from "./pinyin";
-import { SayIt } from "./SayIt";
+import { type Mine, SayIt } from "./SayIt";
 import { clipFor } from "./session";
 import { ToneGraph } from "./ToneGraph";
 import { TONE_COLORS } from "./tones";
@@ -73,7 +73,7 @@ function FamilyGrid({ deck, family }: { deck: Deck; family: Family }) {
   const [voice, setVoice] = useState(deck.voices[0]!.key);
   const [selected, setSelected] = useState<Word | null>(null);
   // The listener's pitch from Say it, for the selected word; cleared when another is chosen.
-  const [mine, setMine] = useState<PitchTrack | null>(null);
+  const [mine, setMine] = useState<Mine | null>(null);
   const words = deck.words.filter((w) => w.family === family.key);
   const all = words.length > 0 ? recorded(deck, words[0]!) : family.contrasts;
   const syllables = (words[0] ?? family.contrasts[0])?.syllables ?? family.key.split(" ");
@@ -182,7 +182,8 @@ function FamilyGrid({ deck, family }: { deck: Deck; family: Family }) {
                 path: recording?.url,
                 timing: recording?.timing,
                 track: recording?.track,
-                mine: mine ?? undefined,
+                mine: mine?.track,
+                mineProvisional: mine?.provisional,
               }}
               headroom={headroomOf(deck, voice)}
             />

@@ -14,7 +14,7 @@ import {
   FaXmark,
 } from "react-icons/fa6";
 import { play, playSequence, prefetch, stop } from "./audio";
-import type { Deck, Pattern, PitchTrack, Tone, Word } from "./deck";
+import type { Deck, Pattern, Tone, Word } from "./deck";
 import { headroomOf, recordedIn, recordingOf, siblings } from "./deck";
 import { isCorrect, spokenForm, wordForAnswer } from "./grading";
 import { HelpButton } from "./Help";
@@ -22,7 +22,7 @@ import { whileLoading } from "./loading";
 import { markSyllable, samePattern } from "./pinyin";
 import type { Progress, Scheduler } from "./progress";
 import { record } from "./progress";
-import { SayIt } from "./SayIt";
+import { type Mine, SayIt } from "./SayIt";
 import type { Mode, Prompt } from "./session";
 import {
   advancesAfterRight,
@@ -516,10 +516,11 @@ function Feedback({
     };
   };
   // The listener's pitch from Say it, drawn on the played word's staff.
-  const [mine, setMine] = useState<PitchTrack | null>(null);
+  const [mine, setMine] = useState<Mine | null>(null);
   const played = {
     ...graphLine("played", word.spoken, `played ${word.pinyin}`, word),
-    mine: mine ?? undefined,
+    mine: mine?.track,
+    mineProvisional: mine?.provisional,
   };
   // Drawn on a second staff, beneath the word played.
   const compared = picked
@@ -608,9 +609,9 @@ function Feedback({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <SayIt
             timing={recordingOf(deck, word, voice)?.timing}
-            onTrack={(track) => {
+            onTrack={(take) => {
               onInteract();
-              setMine(track);
+              setMine(take);
             }}
           />
           <button
