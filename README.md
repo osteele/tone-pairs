@@ -15,7 +15,7 @@ Live at <https://tone-pairs.pages.dev>.
 3. With *Learn* selected at the top, tap a lesson, or *All lessons*, to start.
 
 The app itself loads in seconds. Its recordings (about 110 MB) then download in
-the background, the current lesson's first, while you use it; a line on the
+the background, the current lesson's first, while you use it. A line on the
 app's start screen counts them. When the line disappears, every recording is
 saved and the drill works offline. Until then, a recording that has not arrived
 plays over the network.
@@ -34,11 +34,11 @@ The switch at the top of the start screen sets what tapping a lesson does:
   non-words* adds the made-up ones.
 
 You hear a word and see its pinyin without tone marks. The play button spins
-while the word loads, and a ring around it fills as the word plays; tap it to
+while the word loads, and a ring around it fills as the word plays. Tap it to
 hear the word again, or tap *Show answer* if you don't know. Tap a tone for each
-syllable, in either order; the answer counts once both are chosen. Each word is
+syllable, in either order. The answer counts once both are chosen. Each word is
 spoken by one of four synthesized voices (two women, two men), chosen at random
-each time; tap the voice's name under the play button to hear the word in the
+each time. Tap the voice's name under the play button to hear the word in the
 next voice. *½ speed* plays it slowly at the same pitch, and tapping a
 syllable plays that syllable alone. The words are the workbook's, together with other words, and
 made-up "pseudo-words", that share their syllables but differ in tone, so the
@@ -55,7 +55,7 @@ flatter. It breaks where there is no pitch to measure, such as the hiss of s, sh
 A dot follows the line as the recording plays. Tap a staff to hear it again,
 and tap a word's characters to copy them. *Say it* records you saying the word
 and draws your pitch on the staff, scaled to your own voice, so you can compare
-the two; *Mine* plays your take back. The recording stays on your phone. The ? button on every screen explains
+the two. *Mine* plays your take back. The recording stays on your phone. The ? button on every screen explains
 what it shows.
 
 When the answer is wrong, your answer is drawn on a second staff below. A
@@ -64,7 +64,7 @@ mark your answer. *Play both* plays them one after the other in the same voice,
 and *Loop both* repeats them until stopped. If no real word has the tones you
 chose, you hear a recording of the family made to have them, labelled
 "re-pitched from" the word it was made from. Below, the family's other real
-words are listed; tapping one plays it and puts it on the second staff, after a
+words are listed. Tapping one plays it and puts it on the second staff, after a
 right answer too.
 
 An answer is right if it matches the tones as the word is said. 2-3 and 3-3 are
@@ -75,9 +75,9 @@ notes both.
 Words come back on a spaced-repetition schedule: one you miss returns within
 minutes, one you get right days later. New words are introduced a few at a
 time, 20 a day by default (Settings, the ⚙ button). While a word is new, a
-right answer stays on screen for review, as a wrong one does; *Show answer*
+right answer stays on screen for review, as a wrong one does. *Show answer*
 counts as a miss. Settings can limit the drill to real words, leaving out the
-made-up ones. Progress is stored on the device; Settings can erase it.
+made-up ones. Progress is stored on the device, and Settings can erase it.
 
 If a recording sounds wrong, tap *Bad audio*: that recording is not played
 again, and Settings lists the flagged recordings so they can be fixed. *About*

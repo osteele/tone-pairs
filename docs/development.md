@@ -44,7 +44,7 @@ TONE_PAIRS_TRANSCRIPTS=/path/to/transcripts
   soft consonants rise out of, so none is cut), re-pitched where no word has a
   pattern, and
   encoded as AAC in MP4. MP4 records the encoder's padding, so playback starts at
-  the first sample and the measured times match what is heard; MP3 does not.
+  the first sample and the measured times match what is heard. MP3 does not.
 - `web/public/data/recordings.json`: what was measured in each served
   recording, its content digest, timing, and pitch. Measurements are cached in
   `.cache/measured.json`, so a run decodes only new recordings.
@@ -66,7 +66,7 @@ CC-CEDICT is downloaded to `.cache/` on first use.
    I, which asks which of two words is said, and read-aloud lists. Where the
    book leaves one syllable bare for you to mark (the 不 in `bu shì`), copy the
    item with no tone marks. A lesson with no two-syllable tone-marking items
-   still gets a file, holding only comments that say why; the app lists it as
+   still gets a file, holding only comments that say why. The app lists it as
    having nothing to drill.
 2. If an item is not in CC-CEDICT (`mén hòu`), CC-CEDICT gives it more than
    one reading (不是), or lists it only as a proper noun (春节), add it to
