@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { play } from "./audio";
 import { Browse } from "./Browse";
+import { DevTeacher } from "./DevTeacher";
 import { Drill } from "./Drill";
 import type { Deck } from "./deck";
 import { loadDeck } from "./deck";
@@ -26,6 +27,13 @@ export function App() {
   // The lesson being browsed, if any.
   const [browsing, setBrowsing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // In development builds only, #teacher opens the teacher comparison page (DevTeacher.tsx).
+  const [hash, setHash] = useState(location.hash);
+  useEffect(() => {
+    const changed = () => setHash(location.hash);
+    window.addEventListener("hashchange", changed);
+    return () => window.removeEventListener("hashchange", changed);
+  }, []);
   const recordings = useOfflineRecordings(deck, progress.settings.scope, progress.cards);
 
   useEffect(() => {
@@ -58,6 +66,10 @@ export function App() {
     if (clip) void play(clip);
     setSession((previous) => ({ key: (previous?.key ?? 0) + 1, mode, first }));
   };
+
+  if (import.meta.env.DEV && hash === "#teacher") {
+    return <DevTeacher deck={deck} onBack={() => history.back()} />;
+  }
 
   if (browsing !== null) {
     return <Browse deck={deck} scope={browsing} onBack={() => setBrowsing(null)} />;

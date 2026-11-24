@@ -1,7 +1,7 @@
 import math
 
 import pytest
-from tone_pairs import recordings, resynthesis, sound, timing, tts
+from tone_pairs import recordings, resynthesis, sound, teacher, timing, tts
 from tone_pairs.cedict import parse_line
 from tone_pairs.families import (
     Character,
@@ -363,3 +363,31 @@ def test_track_keeps_a_steep_fall_whose_points_agree():
     st = [12 * math.log2(h / 100) for h in (136, 135, 131, 125, 114, 106, 90, 81)]
     assert timing.drop_octave_jumps(st) == st
     assert timing.drop_octave_jumps([None, 5.0, None]) == [None, 5.0, None]
+
+
+def test_teacher_readings_skip_the_number_and_the_instructions_before_them():
+    # Lesson 7's layout: instructions run into item 9 with short pauses, then items of a
+    # number and the word said twice, items several seconds apart.
+    segments = [
+        (98.1, 99.1),
+        (100.4, 101.3),
+        (103.2, 105.1),  # instructions
+        (120.7, 121.1),
+        (123.0, 123.6),
+        (125.6, 126.2),  # 9: number, word, word
+        (131.4, 131.8),
+        (133.6, 134.4),
+        (136.3, 137.1),  # 10
+    ]
+    assert teacher.item_readings(segments, 2) == [
+        [(123.0, 123.6), (125.6, 126.2)],
+        [(133.6, 134.4), (136.3, 137.1)],
+    ]
+    # Lesson 3's layout: a number and the word said once.
+    assert teacher.item_readings([(117.1, 117.5), (119.0, 119.5)], 1) == [[(119.0, 119.5)]]
+
+
+def test_teacher_reads_only_uncommented_items(tmp_path):
+    transcript = tmp_path / "hsk1-07.txt"
+    transcript.write_text("# 1. shifen / shitang\n9. fang men / fangjian  # note\n")
+    assert teacher.tone_marking_items(transcript) == [(9, ["fang men", "fangjian"])]

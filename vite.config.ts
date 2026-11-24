@@ -1,7 +1,10 @@
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
+import { resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
@@ -20,6 +23,31 @@ function buildId(): string {
   return `${commit}${run("git status --porcelain") === "" ? "" : "+"}`;
 }
 
+/**
+ * Serve .cache/teacher (the workbook readers' measurements and clips, from `just teacher`) at
+ * /dev/teacher/, to the dev server only: the workbook audio is copyrighted, and a build never
+ * copies it.
+ */
+function teacherData(): Plugin {
+  const root = resolve(fileURLToPath(new URL(".", import.meta.url)), ".cache/teacher");
+  return {
+    name: "teacher-data",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use("/dev/teacher/", (req, res, next) => {
+        const name = decodeURIComponent((req.url ?? "").split("?")[0] ?? "").replace(/^\/+/, "");
+        const file = resolve(root, name);
+        if (!file.startsWith(root + sep) || !existsSync(file)) {
+          next();
+          return;
+        }
+        res.setHeader("Content-Type", file.endsWith(".json") ? "application/json" : "audio/wav");
+        createReadStream(file).pipe(res);
+      });
+    },
+  };
+}
+
 export default defineConfig({
   root: "web",
   build: { outDir: "../dist", emptyOutDir: true },
@@ -28,6 +56,7 @@ export default defineConfig({
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
   plugins: [
+    teacherData(),
     react(),
     tailwindcss(),
     VitePWA({

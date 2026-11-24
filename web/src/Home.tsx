@@ -194,6 +194,11 @@ export function Home({ deck, progress, setProgress, onStart, onBrowse, recording
           </label>
           <Flagged progress={progress} setProgress={setProgress} />
           <Reset setProgress={setProgress} />
+          {import.meta.env.DEV && (
+            <a href="#teacher" className="text-sm text-stone-500 underline">
+              Teacher comparison (development)
+            </a>
+          )}
         </div>
       </Modal>
     </main>

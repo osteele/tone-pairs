@@ -75,6 +75,27 @@ CC-CEDICT is downloaded to `.cache/` on first use.
    is short of tone patterns.
 4. `just deploy`.
 
+## Comparing with the workbook audio
+
+`just teacher` measures the workbook's own recordings of the drilled words, so
+the synthesized voices can be checked against them. Name the folder holding the
+lessons' audio (`NN-2.mp3`) in `.env`:
+
+```sh
+TONE_PAIRS_WORKBOOK_AUDIO=/path/to/workbook/audio
+```
+
+It cuts each tone-marking item's readings out of the lesson's second audio file
+and measures them as the recordings are measured. It asks an audio model, through
+OpenRouter (`OPENROUTER_API_KEY`), which printed option each item reads, since
+the options can sound alike, and caches the answers. Everything it writes stays
+in `.cache/teacher`.
+
+Under `just dev`, Settings links to a page that draws each item's readings over
+the four voices' pitch, with each voice's distance from the reader. Only the dev
+server serves the page's data, and a build includes neither the page nor the
+audio, which is copyrighted.
+
 ## Updates on the phone
 
 The service worker precaches only the app and the data files, so a deployed

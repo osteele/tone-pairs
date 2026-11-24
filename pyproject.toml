@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 tone-pairs = "tone_pairs.cli:main"
+tone-pairs-teacher = "tone_pairs.teacher:main"
 
 [build-system]
 requires = ["uv_build>=0.12.6,<0.13.0"]

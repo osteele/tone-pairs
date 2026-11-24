@@ -9,6 +9,11 @@ data:
     uv run tone-pairs
 
 # Rebuild words.json only (no speech synthesis)
+# Measure the workbook's own recordings of the drilled words, for the dev comparison page
+# (needs TONE_PAIRS_WORKBOOK_AUDIO in .env; writes only .cache/teacher)
+teacher:
+    uv run tone-pairs-teacher
+
 data-dry:
     uv run tone-pairs --no-audio
 
