@@ -4045,10 +4045,10 @@
     "hsk1-04"
    ],
    "words": [
+    "yi1wan3-456e72",
     "yi4wan4-809929",
-    "yi1wan3-2682b6",
     "yi3wan2-c4f442",
-    "yi4wan1-f7ca25"
+    "yi1wan3-709891"
    ],
    "contrasts": [
     {
@@ -4091,29 +4091,6 @@
       2
      ],
      "gloss": "依 yī “to depend on” + 玩 wán “to play”",
-     "real": false,
-     "family": "yi wan",
-     "exercises": [
-      "hsk1-04"
-     ]
-    },
-    {
-     "id": "yi1wan3-709891",
-     "hanzi": "依晚",
-     "pinyin": "yīwǎn",
-     "syllables": [
-      "yi",
-      "wan"
-     ],
-     "tones": [
-      1,
-      3
-     ],
-     "spoken": [
-      1,
-      3
-     ],
-     "gloss": "依 yī “to depend on” + 晚 wǎn “evening”",
      "real": false,
      "family": "yi wan",
      "exercises": [
@@ -4276,6 +4253,29 @@
      ],
      "gloss": "以 yǐ “to use” + 腕 wàn “wrist”",
      "real": false,
+     "family": "yi wan",
+     "exercises": [
+      "hsk1-04"
+     ]
+    },
+    {
+     "id": "yi4wan1-d74d8f",
+     "hanzi": "易弯",
+     "pinyin": "yìwān",
+     "syllables": [
+      "yi",
+      "wan"
+     ],
+     "tones": [
+      4,
+      1
+     ],
+     "spoken": [
+      4,
+      1
+     ],
+     "gloss": "flexible",
+     "real": true,
      "family": "yi wan",
      "exercises": [
       "hsk1-04"
@@ -19097,6 +19097,29 @@
    ]
   },
   {
+   "id": "yi1wan3-456e72",
+   "hanzi": "一碗",
+   "pinyin": "yīwǎn",
+   "syllables": [
+    "yi",
+    "wan"
+   ],
+   "tones": [
+    1,
+    3
+   ],
+   "spoken": [
+    4,
+    3
+   ],
+   "gloss": "one bowl",
+   "real": true,
+   "family": "yi wan",
+   "exercises": [
+    "hsk1-04"
+   ]
+  },
+  {
    "id": "yi4wan4-809929",
    "hanzi": "亿万",
    "pinyin": "yìwàn",
@@ -19113,29 +19136,6 @@
     4
    ],
    "gloss": "millions and millions",
-   "real": true,
-   "family": "yi wan",
-   "exercises": [
-    "hsk1-04"
-   ]
-  },
-  {
-   "id": "yi1wan3-2682b6",
-   "hanzi": "一晚",
-   "pinyin": "yīwǎn",
-   "syllables": [
-    "yi",
-    "wan"
-   ],
-   "tones": [
-    1,
-    3
-   ],
-   "spoken": [
-    4,
-    3
-   ],
-   "gloss": "one night",
    "real": true,
    "family": "yi wan",
    "exercises": [
@@ -19166,22 +19166,22 @@
    ]
   },
   {
-   "id": "yi4wan1-f7ca25",
-   "hanzi": "亦湾",
-   "pinyin": "yìwān",
+   "id": "yi1wan3-709891",
+   "hanzi": "依晚",
+   "pinyin": "yīwǎn",
    "syllables": [
     "yi",
     "wan"
    ],
    "tones": [
-    4,
-    1
+    1,
+    3
    ],
    "spoken": [
-    4,
-    1
+    1,
+    3
    ],
-   "gloss": "亦 yì “also” + 湾 wān “bay”",
+   "gloss": "依 yī “to depend on” + 晚 wǎn “evening”",
    "real": false,
    "family": "yi wan",
    "exercises": [
