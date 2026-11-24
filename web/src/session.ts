@@ -125,6 +125,28 @@ export function clipFor(deck: Deck, word: Word, voice: string): Clip | undefined
   return { path: recording.url, stopAt: recording.timing[2] + TAIL_SECONDS };
 }
 
+/**
+ * The voice after `current` among those that recorded the word and that the listener has not
+ * flagged as bad audio, or null if there is no other. The current voice stays in the cycle even
+ * if flagged, as chooseVoice falls back to a flagged voice when all are.
+ */
+export function nextVoice(
+  deck: Deck,
+  word: Word,
+  current: string,
+  flagged: readonly string[],
+): string | null {
+  const usable = deck.voices
+    .map((v) => v.key)
+    .filter(
+      (key) =>
+        recordingOf(deck, word, key) !== undefined &&
+        (key === current || !flagged.includes(`${word.id}:${key}`)),
+    );
+  const next = usable[(usable.indexOf(current) + 1) % usable.length];
+  return next !== undefined && next !== current ? next : null;
+}
+
 /** The slowed playback speed: slow enough to follow the contour, fast enough to stay a word. */
 export const SLOW_RATE = 0.5;
 /**

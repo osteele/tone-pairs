@@ -159,6 +159,10 @@ async function start(run: number): Promise<PlayResult> {
       return "blocked";
     }
     if (error instanceof DOMException && error.name === "AbortError") return "played";
+    if (run === generation) {
+      halt();
+      emit();
+    }
     throw error;
   }
   if (run !== generation) return "played";

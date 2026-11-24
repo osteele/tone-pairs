@@ -9,6 +9,7 @@ import { countScope, pickNext } from "./queue";
 import {
   advancesAfterRight,
   clipFor,
+  nextVoice,
   patternWeights,
   syllableClip,
   UNSEEN_WEIGHT,
@@ -348,5 +349,35 @@ describe("confusion-weighted practice", () => {
         () => 0.5,
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("next voice", () => {
+  const w = word("w", "时间", [2, 1]);
+  const timing = [0.01, 0.3, 0.6] as [number, number, number];
+  const recorded = (voices: string[]) => ({
+    exercises: [],
+    voices: ["a", "b", "c"].map((key) => ({ key, label: key })),
+    families: [],
+    words: [w],
+    recordings: Object.fromEntries(
+      voices.map((v) => [audioPath(w, v), { v: "d", t: timing, p: [[], []] }]),
+    ),
+  });
+
+  test("skips a voice flagged as bad audio", () => {
+    expect(nextVoice(recorded(["a", "b", "c"]), w, "a", ["w:b"])).toBe("c");
+  });
+
+  test("skips a voice with no recording", () => {
+    expect(nextVoice(recorded(["a", "c"]), w, "a", [])).toBe("c");
+  });
+
+  test("offers no other voice when the rest are flagged", () => {
+    expect(nextVoice(recorded(["a", "b", "c"]), w, "a", ["w:b", "w:c"])).toBeNull();
+  });
+
+  test("moves off a flagged current voice", () => {
+    expect(nextVoice(recorded(["a", "b"]), w, "a", ["w:a"])).toBe("b");
   });
 });

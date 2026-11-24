@@ -29,6 +29,7 @@ import {
   clipFor,
   familyPaths,
   nextPrompt,
+  nextVoice,
   SLOW_RATE,
   syllableClip,
 } from "./session";
@@ -186,14 +187,12 @@ export function Drill({
   };
 
   /** Play the word in the next voice that recorded it; the feedback then uses that voice. */
-  const nextVoice = () => {
+  const switchVoice = () => {
     if (!prompt || result) return;
-    const voices = deck.voices.filter((v) => clipFor(deck, prompt.word, v.key));
-    const at = voices.findIndex((v) => v.key === prompt.voice);
-    const next = voices[(at + 1) % voices.length];
-    if (!next || next.key === prompt.voice) return;
-    setPrompt({ ...prompt, voice: next.key });
-    void say(prompt.word, next.key);
+    const next = nextVoice(deck, prompt.word, prompt.voice, progress.flagged);
+    if (!next) return;
+    setPrompt({ ...prompt, voice: next });
+    void say(prompt.word, next);
   };
 
   const hear = (word: Word, options: { slow?: boolean; syllable?: number } = {}) => {
@@ -227,7 +226,7 @@ export function Drill({
       } else if (e.key === "s" && !result) {
         hear(prompt.word, { slow: true });
       } else if (e.key === "v" && !result) {
-        nextVoice();
+        switchVoice();
       } else if (e.key === "Backspace" && !result) {
         setChoices([null, null]);
       }
@@ -371,7 +370,7 @@ export function Drill({
             <span aria-hidden>·</span>
             <button
               type="button"
-              onClick={nextVoice}
+              onClick={switchVoice}
               aria-label={`Voice: ${voiceLabel}. Tap for the next voice`}
               className="flex items-center gap-1.5 rounded-full px-3 py-1 active:bg-stone-200"
             >
@@ -579,6 +578,7 @@ function Feedback({
                 ? tapped(() => {
                     setPicked(null);
                     if (answeredClip) void play(answeredClip);
+                    else stop();
                   })
                 : undefined
             }
@@ -632,7 +632,7 @@ function Feedback({
           </button>
           <button
             type="button"
-            disabled={!comparisonClip}
+            disabled={!comparisonClip && !looping}
             onClick={tapped(() => {
               if (looping) stop();
               else if (playedClip && comparisonClip)
