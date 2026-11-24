@@ -18,6 +18,9 @@ from . import resynthesis, sound, timing, tts
 from .families import Word
 from .tts import Voice
 
+# Part of every measurement's cache key: raise it when the timing or track code changes what
+# it measures, so the next run measures every recording again.
+_MEASURE_VERSION = 3
 # Recordings per voice sampled to find the voice's pitch range (resynthesis.voice_range).
 _RANGE_SAMPLE = 60
 
@@ -88,7 +91,7 @@ def build(
                 sound.encode(samples, out)
                 made += 1
             digest = tts.version(out)
-            key = f"{digest}:{span[0]:.2f}:{span[1]:.2f}"
+            key = f"{_MEASURE_VERSION}:{digest}:{span[0]:.2f}:{span[1]:.2f}"
             if key not in cache:
                 heard = sound.decode(out)
                 bounds = timing.measure(heard, voice.pitch_floor, voice.pitch_ceiling)

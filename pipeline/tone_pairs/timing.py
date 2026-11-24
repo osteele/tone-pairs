@@ -16,6 +16,12 @@ _STEP = 0.01
 _VOICING_THRESHOLD = 0.3
 # Points sampled through each syllable for the measured pitch.
 _TRACK_POINTS = 16
+# A jump of this many semitones between neighbouring voiced points is a pitch-tracking error: the
+# tracker has read an octave (12 semitones) high or low, as it does in creak at the end of a word.
+# No tone moves this far in a sixteenth of a syllable.
+_OCTAVE_JUMP = 7.0
+# The longest run of points so read that is dropped, when the syllable has a longer one.
+_STRAY_RUN = 3
 
 
 @dataclass(frozen=True)
@@ -87,14 +93,41 @@ def track(
     low, high = span
     syllables: list[list[int | None]] = []
     for start, end in ((bounds.start, bounds.split), (bounds.split, bounds.end)):
-        points: list[int | None] = []
+        semitones: list[float | None] = []
         for k in range(_TRACK_POINTS):
             hertz = pitch.get_value_at_time(start + (k + 0.5) / _TRACK_POINTS * (end - start))
-            if math.isnan(hertz):
-                points.append(None)
-            else:
-                semitones = 12 * math.log2(hertz / 100)
-                level = 1 + 4 * (semitones - low) / (high - low)
-                points.append(round(level * 10))
-        syllables.append(points)
+            semitones.append(None if math.isnan(hertz) else 12 * math.log2(hertz / 100))
+        syllables.append(
+            [
+                None if s is None else round(10 * (1 + 4 * (s - low) / (high - low)))
+                for s in drop_octave_jumps(semitones)
+            ]
+        )
     return syllables
+
+
+def drop_octave_jumps(points: list[float | None]) -> list[float | None]:
+    """``points`` (semitones, None where unvoiced) without short runs that sit an octave or so
+    away from the rest of the syllable, which are pitch-tracking errors rather than speech.
+
+    The voiced points divide into runs wherever one is _OCTAVE_JUMP or more from the voiced point
+    before it. A tone moves only a few semitones between neighbouring points, so a steep fall stays
+    one run, and a run read an octave off begins with such a jump. A run of at most _STRAY_RUN
+    points is dropped when the syllable has a longer one.
+    """
+    runs: list[list[int]] = []
+    previous: float | None = None
+    for i, point in enumerate(points):
+        if point is None:
+            continue
+        if previous is None or abs(point - previous) >= _OCTAVE_JUMP:
+            runs.append([])
+        runs[-1].append(i)
+        previous = point
+    longest = max((len(run) for run in runs), default=0)
+    kept = list(points)
+    for run in runs:
+        if len(run) <= _STRAY_RUN and len(run) < longest:
+            for i in run:
+                kept[i] = None
+    return kept

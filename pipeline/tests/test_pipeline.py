@@ -341,3 +341,25 @@ def test_build_keeps_existing_recordings_when_the_speech_cache_is_empty(tmp_path
     again = recordings.build([source], speech, audio, cache, progress=lambda _: None)
     assert set(again) == set(first)
     assert (audio / tts.filename(source, voice)).exists()
+
+
+def test_track_drops_a_point_read_an_octave_off():
+    # 准时 in Yunjian: the last point read 241 Hz after 105-108 Hz, an octave high.
+    st = [12 * math.log2(h / 100) for h in (105, 104, 105, 108, 241)]
+    assert timing.drop_octave_jumps(st)[:4] == st[:4]
+    assert timing.drop_octave_jumps(st)[4] is None
+    # 回家 in Yunxi: the last two points read 67-70 Hz after 134-136 Hz, an octave low.
+    st = [12 * math.log2(h / 100) for h in (142, 135, 134, 136)]
+    st += [None, 12 * math.log2(70 / 100), 12 * math.log2(67 / 100)]
+    assert timing.drop_octave_jumps(st) == st[:5] + [None, None]
+    # A run read an octave off at the start of a syllable is dropped too.
+    st = [12 * math.log2(h / 100) for h in (250, 248, 125, 124, 123, 121, 120)]
+    assert timing.drop_octave_jumps(st) == [None, None] + st[2:]
+
+
+def test_track_keeps_a_steep_fall_whose_points_agree():
+    # A fourth tone falling an octave in a syllable (生日 rì in Yunjian, 136 to 81 Hz) moves a few
+    # semitones per point, so none of it is dropped, nor is a lone voiced point.
+    st = [12 * math.log2(h / 100) for h in (136, 135, 131, 125, 114, 106, 90, 81)]
+    assert timing.drop_octave_jumps(st) == st
+    assert timing.drop_octave_jumps([None, 5.0, None]) == [None, 5.0, None]
