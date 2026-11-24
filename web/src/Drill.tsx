@@ -187,8 +187,13 @@ export function Drill({
   };
 
   /** Play the word in the next voice that recorded it; the feedback then uses that voice. */
+  /**
+   * Play the word in the next voice that recorded it. On the answer screen the staves and
+   * comparisons follow, since they are drawn from the current voice.
+   */
   const switchVoice = () => {
-    if (!prompt || result) return;
+    if (!prompt) return;
+    cancelAdvance();
     const next = nextVoice(deck, prompt.word, prompt.voice, progress.flagged);
     if (!next) return;
     setPrompt({ ...prompt, voice: next });
@@ -225,7 +230,7 @@ export function Drill({
         else if (choices[1] === null) pick(1, tone);
       } else if (e.key === "s" && !result) {
         hear(prompt.word, { slow: true });
-      } else if (e.key === "v" && !result) {
+      } else if (e.key === "v") {
         switchVoice();
       } else if (e.key === "Backspace" && !result) {
         setChoices([null, null]);
@@ -390,6 +395,8 @@ export function Drill({
           onFlag={flag}
           flagged={progress.flagged.includes(`${word.id}:${prompt.voice}`)}
           onNext={advance}
+          voiceLabel={voiceLabel}
+          onSwitchVoice={switchVoice}
         />
       ) : (
         <section className="flex flex-col gap-3">
@@ -461,6 +468,8 @@ function Feedback({
   onFlag,
   flagged,
   onNext,
+  voiceLabel,
+  onSwitchVoice,
 }: {
   deck: Deck;
   prompt: Prompt;
@@ -470,6 +479,8 @@ function Feedback({
   onFlag: () => void;
   flagged: boolean;
   onNext: () => void;
+  voiceLabel: string;
+  onSwitchVoice: () => void;
 }) {
   const { word, voice } = prompt;
   // The word whose tones the listener named, if one was recorded.
@@ -593,13 +604,23 @@ function Feedback({
           line={played}
           onPlay={playedClip ? tapped(() => void play(playedClip)) : undefined}
         />
-        <SayIt
-          timing={recordingOf(deck, word, voice)?.timing}
-          onTrack={(track) => {
-            onInteract();
-            setMine(track);
-          }}
-        />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <SayIt
+            timing={recordingOf(deck, word, voice)?.timing}
+            onTrack={(track) => {
+              onInteract();
+              setMine(track);
+            }}
+          />
+          <button
+            type="button"
+            onClick={onSwitchVoice}
+            aria-label={`Voice: ${voiceLabel}. Tap for the next voice`}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-stone-500 active:bg-stone-200"
+          >
+            {voiceLabel} <FaArrowsRotate size={11} />
+          </button>
+        </div>
         {compared && (
           <Staff
             who={picked ? "other" : "answered"}

@@ -55,7 +55,7 @@ flatter. It breaks where there is no pitch to measure, such as the hiss of s, sh
 A dot follows the line as the recording plays. Tap a staff to hear it again,
 and tap a word's characters to copy them. *Say it* records you saying the word
 and draws your pitch on the staff, scaled to your own voice, so you can compare
-the two. *Mine* plays your take back. The recording stays on your phone. The ? button on every screen explains
+the two. *Mine* plays your take back, and the voice's name beside it switches to the next voice. The recording stays on your phone. The ? button on every screen explains
 what it shows.
 
 When the answer is wrong, your answer is drawn on a second staff below. A
